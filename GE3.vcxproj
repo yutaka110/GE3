@@ -104,6 +104,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ColorConverter.cpp" />
     <ClCompile Include="CustomByteStream.cpp" />
     <ClCompile Include="DebugCamera.cpp" />
+    <ClCompile Include="engine\src\core\Device.cpp" />
+    <ClCompile Include="engine\src\graphics\SwapChain.cpp" />
     <ClCompile Include="engine\src\platform\Win32App.cpp" />
     <ClCompile Include="engine\src\platform\Window.cpp" />
     <ClCompile Include="engine\src\utils\Checked.cpp" />
@@ -151,6 +153,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="ColorConverter.h" />
     <ClInclude Include="CustomByteStream.h" />
     <ClInclude Include="DebugCamera.h" />
+    <ClInclude Include="engine\include\core\Device.h" />
+    <ClInclude Include="engine\include\graphics\SwapChain.h" />
     <ClInclude Include="engine\include\platform\Win32App.h" />
     <ClInclude Include="engine\include\platform\Window.h" />
     <ClInclude Include="engine\include\utils\Checked.h" />
