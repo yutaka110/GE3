@@ -2064,12 +2064,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//device->CreateRenderTargetView(swapChainResources[1].Get(), &rtvDesc,
 	//	rtvHandles[1]);
 
-	// バックバッファ番号
-	UINT bb = swapChain.CurrentIndex();
+	//// バックバッファ番号
+	//UINT bb = swapChain.CurrentIndex();
 
-	// そのフレーム用のRTVとBackBuffer
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv = swapChain.RTV(bb);
-	ID3D12Resource* backBuffer = swapChain.BackBuffer(bb);
+	//// そのフレーム用のRTVとBackBuffer
+	//D3D12_CPU_DESCRIPTOR_HANDLE rtv = swapChain.RTV(bb);
+	//ID3D12Resource* backBuffer = swapChain.BackBuffer(bb);
 
 	constexpr DXGI_FORMAT kRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -2484,7 +2484,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// 書き込むRTVの情報
 	graphicsPipelineStateDesc.NumRenderTargets = 1;
-	graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// 利用するポリゴン（形状）のタイプ：三角形
 	graphicsPipelineStateDesc.PrimitiveTopologyType =
@@ -3349,6 +3349,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// ImGuiの描画コマンドをコマンドリストに積む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
+			{
+				D3D12_RESOURCE_BARRIER b{};
+				b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+				b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+				b.Transition.pResource = backBuffer;
+				b.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+				b.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+				b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+				commandList->ResourceBarrier(1, &b);
+			}
+
+
 			hr = commandList->Close();
 			if (FAILED(hr)) {
 				char msg[256];
@@ -3363,13 +3375,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ID3D12CommandList* commandLists[] = { commandList.Get() };
 			commandQueue->ExecuteCommandLists(1, commandLists);
 
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			//barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			//barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 
-			std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
+			//std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
 
-			// TransitionBarrierを張る
-			commandList->ResourceBarrier(1, &barrier);
+			//// TransitionBarrierを張る
+			//commandList->ResourceBarrier(1, &barrier);
 
 			//swapChain->Present(1, 0);
 			swapChain.Present(dev, 1);
