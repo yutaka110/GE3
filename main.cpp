@@ -76,6 +76,7 @@
 #include "./platform/Window.h"
 #include "core/Device.h"
 #include "graphics/SwapChain.h"
+#include "core/CommandListPool.h"
 
 // …WSAStartup はどこかの初期化で一度だけ呼んでおいてね…
 /*
@@ -1966,6 +1967,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		return -1;
 	}
 
+	core::CommandListPool clPool;
+	clPool.Initialize(dev, /*frameCount=*/swapChain.BufferCount());
+
+
 
 	//ComPtr<IDXGISwapChain4> swapChain = nullptr;
 	//DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
@@ -2930,9 +2935,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	SphereMeshData sphere{};
 
-	// コマンドアロケータとコマンドリストをReset
-	commandAllocator->Reset();
-	commandList->Reset(commandAllocator.Get(), graphicsPipelineState.Get());
+	//// コマンドアロケータとコマンドリストをReset
+	//commandAllocator->Reset();
+	//commandList->Reset(commandAllocator.Get(), graphicsPipelineState.Get());
 
 	bool useMonsterBall = true;
 
@@ -3074,6 +3079,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			/*UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();*/
 			UINT backBufferIndex = swapChain.CurrentIndex();
+
+			// コマンドアロケータとコマンドリストをReset
+			ComPtr<ID3D12GraphicsCommandList> commandList = clPool.Begin(backBufferIndex, /*初期PSO*/ graphicsPipelineState.Get());
 
 			//**************************
 			// TransitionBarrierを張る
@@ -3361,19 +3369,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 
 
-			hr = commandList->Close();
+			/*hr = commandList->Close();
 			if (FAILED(hr)) {
 				char msg[256];
 				sprintf_s(msg, "[ERROR] commandList->Close() failed: 0x%08X\n", hr);
 				OutputDebugStringA(msg);
 			}
-			assert(SUCCEEDED(hr));
+			assert(SUCCEEDED(hr));*/
 
 			//**************************
 			// 描画コマンド終了
 			//**************************
-			ID3D12CommandList* commandLists[] = { commandList.Get() };
-			commandQueue->ExecuteCommandLists(1, commandLists);
+			/*ID3D12CommandList* commandLists[] = { commandList.Get() };
+			commandQueue->ExecuteCommandLists(1, commandLists);*/
+
+			clPool.EndAndExecute(dev);
 
 			//barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			//barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -3402,11 +3412,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				WaitForSingleObject(fenceEvent, INFINITE);
 			}
 
-			hr = commandAllocator->Reset();
+			/*hr = commandAllocator->Reset();
 			assert(SUCCEEDED(hr));
 			hr = commandList->Reset(commandAllocator.Get(),
 				graphicsPipelineState.Get());
-			assert(SUCCEEDED(hr));
+			assert(SUCCEEDED(hr));*/
 		}
 	}
 
