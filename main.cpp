@@ -77,6 +77,7 @@
 #include "core/Device.h"
 #include "graphics/SwapChain.h"
 #include "core/CommandListPool.h"
+#include "core/DescriptorHeap.h"
 
 // …WSAStartup はどこかの初期化で一度だけ呼んでおいてね…
 /*
