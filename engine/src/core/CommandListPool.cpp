@@ -13,6 +13,8 @@ static std::string HexHR(HRESULT hr) {
     return oss.str();
 }
 
+
+// frameCount はスワップチェーンのバッファ数に合わせる（例: 2）
 bool CommandListPool::Initialize(Device& dev, UINT frameCount)
 {
     frameCount_ = frameCount;
@@ -55,6 +57,7 @@ bool CommandListPool::Initialize(Device& dev, UINT frameCount)
     return true;
 }
 
+// Begin: 指定フレームの Allocator を Reset し、リストを Reset して返す
 ID3D12GraphicsCommandList* CommandListPool::Begin(UINT frameIndex, ID3D12PipelineState* pso)
 {
     assert(frameIndex < frameCount_);
@@ -79,6 +82,7 @@ ID3D12GraphicsCommandList* CommandListPool::Begin(UINT frameIndex, ID3D12Pipelin
     return list_.Get();
 }
 
+// EndAndExecute: Close→Execute（QueueはDeviceから取得）
 void CommandListPool::EndAndExecute(Device& dev)
 {
     HRESULT hr = list_->Close();
