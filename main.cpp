@@ -100,7 +100,7 @@ WSAStartup(MAKEWORD(2,2), &wsa);
 
 using namespace Microsoft::WRL;
 
-
+using ge3::core::DescriptorHeapSet;
 
 
 //extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
@@ -1434,12 +1434,6 @@ bool GrabFrameToD3D12_RGB(
 	return true;
 }
 
-
-
-
-
-
-
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// comの初期化
@@ -1510,8 +1504,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Microsoft::WRL::ComPtr < ID3D12Device> device = dev.GetDevice();
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = dev.GetCommandQueue();
 	Microsoft::WRL::ComPtr<ID3D12Fence>        fence = dev.GetFence();
-
-
 
 	// コマンドアロケータを生成する
 	ComPtr<ID3D12CommandAllocator> commandAllocator = nullptr;
@@ -2000,19 +1992,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// IID_PPV_ARGS(&rtvDescriptorHeap));
 	//  RTV用のヒープでディスクリプタの数は2。RTVはShader内で触るものではないので、ShaderVisibleはfalse
 
-	ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap =
-		CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	// デバイス作成が済んだ後に使うため、どこか生存期間の長い所に保持
+	static DescriptorHeapSet g_descHeaps;
 
-	// SRV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
-	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(
-		device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	// （SwapChain のバックバッファ用インデックスも持つ）
+	static UINT g_swapchainRtvIndex[2] = { UINT32_MAX, UINT32_MAX };
+	// DSV も 1 本ならインデックスを保持
+	static UINT g_mainDsvIndex = UINT32_MAX;
+
+	g_descHeaps.Initialize(device.Get(),
+		/*rtv*/  8,   // ゆとりを持たせる
+		/*dsv*/  8,
+		/*srv*/  1024);
+
+	// 互換エイリアス（既存のコードを大きく直さず動かす用）
+	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = g_descHeaps.srv.GetHeap();
+
+	//ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap =
+	//	CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+
+	//// SRV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
+	//ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(
+	//	device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 
 	ComPtr<ID3D12Resource> depthStencilResource =
 		CreateDepthStencilTextureResource(device, wd.width, wd.height);
 
-	// DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので、ShaderVisibleはfalse
-	ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap =
-		CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	//// DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので、ShaderVisibleはfalse
+	//ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap =
+	//	CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 
 	// DSVの設定
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
@@ -2023,10 +2031,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 2dTexture
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
-	// Heap上の先頭にDSVをつくる
-	device->CreateDepthStencilView(
-		depthStencilResource.Get(), &dsvDesc,
-		dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	// dsvのヒープを作成
+	auto dsvH = g_descHeaps.dsv.Allocate();
+	device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvH.cpu);
+	g_mainDsvIndex = dsvH.index;
+
+
+
+	//// Heap上の先頭にDSVをつくる
+	//device->CreateDepthStencilView(
+	//	depthStencilResource.Get(), &dsvDesc,
+	//	dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	//**************************
 	// DescriptorSizeを取得
@@ -3111,8 +3126,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->ResourceBarrier(1, &barrier);
 
 			// 描画先のRTVとDSVを設定する
-			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
-				dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+			/*D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
+				dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();*/
+				// DSV は、作成時に決めた g_mainDsvIndex を使う（例: 0 固定）
+			auto dsvHandle = g_descHeaps.dsv.GetHandle(g_mainDsvIndex).cpu;
+
 			D3D12_CPU_DESCRIPTOR_HANDLE rtv = swapChain.RTV(backBufferIndex);
 			commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsvHandle); // 第3引数は BOOL
 
