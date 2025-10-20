@@ -71,8 +71,7 @@
 #include "UdpByteStream.h"
 #include "NalUtils.h"
 
-#include "./lib/Receiver/FrameProto.h"
-#include "./lib/Receiver/startTcpReceiverRgb32.h"
+
 #include "./platform/Window.h"
 #include "core/Device.h"
 #include "graphics/SwapChain.h"
