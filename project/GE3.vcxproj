@@ -76,7 +76,7 @@
     <PostBuildEvent>
       <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
 copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"
-xcopy /Y /D "C:\opencv\build\x64\vc16\bin\*.dll" "$(OutDir)"
+
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
