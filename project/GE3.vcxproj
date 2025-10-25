@@ -116,6 +116,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\src\core\DescriptorHeap.cpp" />
     <ClCompile Include="engine\src\core\Device.cpp" />
     <ClCompile Include="engine\src\graphics\SwapChain.cpp" />
+    <ClCompile Include="engine\src\input\Input.cpp" />
     <ClCompile Include="engine\src\platform\Win32App.cpp" />
     <ClCompile Include="engine\src\platform\Window.cpp" />
     <ClCompile Include="engine\src\utils\Checked.cpp" />
@@ -167,6 +168,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\include\core\DescriptorHeap.h" />
     <ClInclude Include="engine\include\core\Device.h" />
     <ClInclude Include="engine\include\graphics\SwapChain.h" />
+    <ClInclude Include="engine\include\input\Input.h" />
     <ClInclude Include="engine\include\platform\Win32App.h" />
     <ClInclude Include="engine\include\platform\Window.h" />
     <ClInclude Include="engine\include\utils\Checked.h" />
