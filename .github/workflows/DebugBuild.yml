@@ -7,7 +7,7 @@ on:
 
 env:
   # 例: engine の上にあるソリューションなら "project/CG2.sln" のように書く
-  SOLUTION_FILE_PATH: YourSolution.sln
+  SOLUTION_FILE_PATH: project/GE3.sln
   CONFIGURATION: Debug
 
 jobs:
