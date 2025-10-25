@@ -2,7 +2,7 @@ name: ReleaseBuild
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master ]      # 既定が main なら [ main ]
   workflow_dispatch:
 
 env:
@@ -12,7 +12,6 @@ env:
 jobs:
   build:
     runs-on: windows-2022
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,5 +25,5 @@ jobs:
         shell: cmd
         run: |
           msbuild "${{ env.SOLUTION_FILE_PATH }}" ^
-            /p:Platform=${{ env.PLATFORM }},Configuration=${{ env.CONFIGURATION }} ^
+            /p:Platform=x64,Configuration=${{ env.CONFIGURATION }} ^
             /m
