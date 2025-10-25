@@ -1,0 +1,35 @@
+name: DebugBuild
+
+on:
+  push:
+    branches: [ master ]   # 既定ブランチが main なら [ main ] に変更
+  workflow_dispatch:       # 手動実行も許可
+
+env:
+  # 例: engine の上にあるソリューションなら "project/CG2.sln" のように書く
+  SOLUTION_FILE_PATH: YourSolution.sln
+  CONFIGURATION: Debug
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 必要なら NuGet で復元（NuGet を使っている場合だけ有効化）
+      # - name: Restore NuGet packages
+      #   run: nuget restore "${{ env.SOLUTION_FILE_PATH }}"
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Build
+        shell: cmd
+        run: |
+          msbuild "${{ env.SOLUTION_FILE_PATH }}" ^
+            /p:Platform=x64,Configuration=${{ env.CONFIGURATION }} ^
+            /m
