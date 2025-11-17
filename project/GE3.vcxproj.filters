@@ -168,6 +168,12 @@
     <ClCompile Include="engine\src\core\Device.cpp">
       <Filter>ソース ファイル\engine\core</Filter>
     </ClCompile>
+    <ClCompile Include="engine\src\core\ShaderCompiler.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\src\graphics\PipelineBuilder.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Object3D.VS.hlsl" />
@@ -287,6 +293,12 @@
     </ClInclude>
     <ClInclude Include="engine\include\graphics\SwapChain.h">
       <Filter>ヘッダー ファイル\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\include\core\ShaderCompiler.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\include\graphics\pipelineBuilder.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
