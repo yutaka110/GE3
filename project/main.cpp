@@ -2205,11 +2205,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			DispatchMessage(&msg);
 		}
 		else {
-
+           #ifdef DEVELOP
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
-
+           #endif
 			/*UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();*/
 			UINT backBufferIndex = swapChain.CurrentIndex();
 
@@ -2252,7 +2252,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsvHandle); // 第3引数は BOOL
 
 
-			float clearColor[] = { 0.1f, 0.25f, 0.5f, 1.0f };
+			float clearColor[] = { 0.35f, 0.5f, 0.8f, 1.0f };
 			/*commandList->ClearRenderTargetView(rtvHandles[backBufferIndex],
 				clearColor, 0, nullptr);*/
 			commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
@@ -2342,6 +2342,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				sphere.mappedCBV->World = Transpose(Inverse(worldMatrixSphere));
 			}
 
+            #ifdef DEVELOP 
 			// --- ImGuiでUI構築 ---
 			ImGui::ShowDemoWindow(); // または自作UI
 
@@ -2387,7 +2388,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// --- ImGui描画準備 ---
 			ImGui::Render();
-
+#endif
 			// 向きベクトルは単位ベクトルに正規化
 			directionalLightData.direction =
 				Normalize(directionalLightData.direction);
@@ -2515,9 +2516,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(
 				3, directionalLightResource->GetGPUVirtualAddress());
 
+#ifdef DEVELOP
 			// ImGuiの描画コマンドをコマンドリストに積む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
-
+#endif
 			{
 				D3D12_RESOURCE_BARRIER b{};
 				b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
