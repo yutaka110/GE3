@@ -1,7 +1,11 @@
 #include "platform/Window.h"
 #include <shellscalingapi.h> // SetProcessDpiAwareness
 #pragma comment(lib, "Shcore.lib")
-
+#include"utils/ProjectSettings.h"
+#ifdef DEVELOP
+#include "../../../externals/imgui/imgui.h"
+#include "../../../externals/imgui/imgui_impl_win32.h"
+#endif
 using namespace eng::platform;
 
 //void Window::EnableDpiAwareness() {
@@ -90,7 +94,7 @@ LRESULT CALLBACK Window::WndProcStatic(HWND h, UINT m, WPARAM w, LPARAM l) {
 LRESULT Window::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
 
     // Window::WndProc 冒頭あたり
-#ifdef USE_IMGUI
+#ifdef DEVELOP
     extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
     if (ImGui_ImplWin32_WndProcHandler(h, m, w, l)) return true;
 #endif
