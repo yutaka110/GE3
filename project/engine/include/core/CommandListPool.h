@@ -27,4 +27,5 @@ namespace core {
         UINT frameCount_ = 0;
         UINT currentFrame_ = 0;
     };
+
 }
