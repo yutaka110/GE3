@@ -10,8 +10,6 @@
 //    return app.Run();
 //}
 
-
-
 #define _WINSOCKAPI_
 #define _WIN32_WINNT 0x0602 // Windows 8
 #define ANCHOR_TEST
@@ -78,7 +76,11 @@
 #include "graphics/SwapChain.h"
 #include "core/CommandListPool.h"
 #include "core/DescriptorHeap.h"
-
+#include "core/ShaderCompiler.h"  // ★ 追加
+using ge3::core::ShaderCompiler;
+#include "particle/BeamRenderer.h"
+#include <DirectXMath.h>
+using namespace DirectX;
 // …WSAStartup はどこかの初期化で一度だけ呼んでおいてね…
 /*
 WSADATA wsa;
@@ -102,7 +104,16 @@ using namespace Microsoft::WRL;
 
 using ge3::core::DescriptorHeapSet;
 
+static BeamRenderer g_beam;
+static float g_beamTime = 0.0f;
 
+struct BeamPSConstants
+{
+	DirectX::XMFLOAT4 baseColor;  // float4
+	float intensity;              // float
+	float time;                   // float
+	float pad[2];                 // 16byte アライン調整
+};
 //extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
 //	UINT msg,
 //	WPARAM wParam,
@@ -500,88 +511,126 @@ std::wstring ConvertString(const std::string& str) {
 	return result;
 }
 
+//IDxcBlob* CompileShader(
+//	// CompilerするShaderファイルへのパス
+//	const std::wstring& filePath,
+//	// Compilerに使用するProfile
+//	const wchar_t* profile,
+//	// 初期化で生成したものを3つ
+//	IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler,
+//	IDxcIncludeHandler* includeHandler) {
+//	// ここに中身を書いていく
+//	// 1. .hlslファイルを読む
+//	// これからシェーダーをコンパイルする旨をログに出す
+//	Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}\n",
+//		filePath, profile)));
+//
+//	// hlslファイルを読む
+//	IDxcBlobEncoding* shaderSource = nullptr;
+//	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+//
+//	// 読めなかったら止める
+//	assert(SUCCEEDED(hr));
+//
+//	// 読み込んだファイルの内容を設定する
+//	DxcBuffer shaderSourceBuffer;
+//	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
+//	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
+//	shaderSourceBuffer.Encoding = DXC_CP_UTF8; // UTF8の文字コードであることを通知
+//
+//	// 2. Compileする
+//	LPCWSTR arguments[] = {
+//		filePath.c_str(), // コンパイル対象の hlsl ファイル名
+//		L"-E",
+//		L"main", // エントリーポイントの指定。基本的に main 以外にはしない
+//		L"-T",
+//		profile, // ShaderProfile の設定
+//		L"-Zi",
+//		L"-Qembed_debug", // デバッグ用の情報を埋め込む
+//		L"-Od",           // 最適化を外しておく
+//		L"-Zpr",          // メモリレイアウトは行優先
+//	};
+//
+//	// 実際に Shader をコンパイルする
+//	IDxcResult* shaderResult = nullptr;
+//	hr = dxcCompiler->Compile(
+//		&shaderSourceBuffer,        // 読み込んだファイル
+//		arguments,                  // コンパイルオプション
+//		_countof(arguments),        // コンパイルオプションの数
+//		includeHandler,             // include が含まれた時の対応
+//		IID_PPV_ARGS(&shaderResult) // コンパイル結果を受け取る
+//	);
+//
+//	// コンパイルエラーではなく、dxc が起動できたかどうかをチェック
+//	assert(SUCCEEDED(hr));
+//
+//	// 3. 警告・エラーが出ていないか確認する
+//	// 警告・エラーが出てたらログに出して止める
+//	IDxcBlobUtf8* shaderError = nullptr;
+//	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
+//
+//	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
+//		Log(shaderError->GetStringPointer());
+//		// 警告・エラーダメゼッタイ
+//		assert(false);
+//	}
+//
+//	// 4. Compile結果を受け取って返す
+//	// コンパイル結果から実行用のバイナリ部分を取得
+//	IDxcBlob* shaderBlob = nullptr;
+//	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob),
+//		nullptr);
+//	assert(SUCCEEDED(hr));
+//
+//	// 成功したログを出す
+//	Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}\n",
+//		filePath, profile)));
+//
+//	// もう使わないリソースを解放
+//	shaderSource->Release();
+//	shaderResult->Release();
+//
+//	// 実行用のバイナリを返却
+//	return shaderBlob;
+//}
+static ShaderCompiler g_ShaderCompiler;
 IDxcBlob* CompileShader(
-	// CompilerするShaderファイルへのパス
 	const std::wstring& filePath,
-	// Compilerに使用するProfile
-	const wchar_t* profile,
-	// 初期化で生成したものを3つ
-	IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler,
-	IDxcIncludeHandler* includeHandler) {
-	// ここに中身を書いていく
-	// 1. .hlslファイルを読む
-	// これからシェーダーをコンパイルする旨をログに出す
-	Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}\n",
-		filePath, profile)));
-
-	// hlslファイルを読む
-	IDxcBlobEncoding* shaderSource = nullptr;
-	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
-
-	// 読めなかったら止める
-	assert(SUCCEEDED(hr));
-
-	// 読み込んだファイルの内容を設定する
-	DxcBuffer shaderSourceBuffer;
-	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
-	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
-	shaderSourceBuffer.Encoding = DXC_CP_UTF8; // UTF8の文字コードであることを通知
-
-	// 2. Compileする
-	LPCWSTR arguments[] = {
-		filePath.c_str(), // コンパイル対象の hlsl ファイル名
-		L"-E",
-		L"main", // エントリーポイントの指定。基本的に main 以外にはしない
-		L"-T",
-		profile, // ShaderProfile の設定
-		L"-Zi",
-		L"-Qembed_debug", // デバッグ用の情報を埋め込む
-		L"-Od",           // 最適化を外しておく
-		L"-Zpr",          // メモリレイアウトは行優先
-	};
-
-	// 実際に Shader をコンパイルする
-	IDxcResult* shaderResult = nullptr;
-	hr = dxcCompiler->Compile(
-		&shaderSourceBuffer,        // 読み込んだファイル
-		arguments,                  // コンパイルオプション
-		_countof(arguments),        // コンパイルオプションの数
-		includeHandler,             // include が含まれた時の対応
-		IID_PPV_ARGS(&shaderResult) // コンパイル結果を受け取る
-	);
-
-	// コンパイルエラーではなく、dxc が起動できたかどうかをチェック
-	assert(SUCCEEDED(hr));
-
-	// 3. 警告・エラーが出ていないか確認する
-	// 警告・エラーが出てたらログに出して止める
-	IDxcBlobUtf8* shaderError = nullptr;
-	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
-
-	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
-		Log(shaderError->GetStringPointer());
-		// 警告・エラーダメゼッタイ
+	const wchar_t* profile)
+{
+	// 念のため（すでにどこかで Initialize 済みなら true が返るだけ）
+	if (!g_ShaderCompiler.Initialize()) {
 		assert(false);
+		return nullptr;
 	}
 
-	// 4. Compile結果を受け取って返す
-	// コンパイル結果から実行用のバイナリ部分を取得
-	IDxcBlob* shaderBlob = nullptr;
-	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob),
-		nullptr);
-	assert(SUCCEEDED(hr));
+	// 既存の Object3D / Particle / MotionDetect は entry = "main"
+	//   - Object3D.VS.hlsl → VertexShaderOutput main(...)
+	//   - Object3D.PS.hlsl → float4 main(...)
+	//   - Particle.*.hlsl   → main
+	//   - MotionDetect.CS.hlsl → void main(uint3 DTid ...)
+	//
+	// なのでここは "main" 固定で OK。
+	// （Beam 用シェーダは BeamRenderer 側から "VSMain" / "PSMain" を指定するので別ルート）
+	std::wstring entryPoint = L"main";
 
-	// 成功したログを出す
-	Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}\n",
-		filePath, profile)));
+	// profile は "vs_6_0", "ps_6_0", "cs_6_0" など
+	auto blob = g_ShaderCompiler.CompileFromFile(
+		filePath,
+		entryPoint,
+		profile
+	);
 
-	// もう使わないリソースを解放
-	shaderSource->Release();
-	shaderResult->Release();
+	if (!blob) {
+		// Compile 失敗。ログは ShaderCompiler 側が出してくれている。
+		assert(false);
+		return nullptr;
+	}
 
-	// 実行用のバイナリを返却
-	return shaderBlob;
+	// ComPtr<IDxcBlob> → 生ポインタに所有権移動（呼び出し側が Release する）
+	return blob.Detach();
 }
+
 
 //**************************
 // CrashHandlerの登録
@@ -876,7 +925,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	eng::platform::Window window;
 	eng::platform::WindowDesc wd;
-	wd.title = u"CG2WindowClass";
+	wd.title = u"LE2B_17_タケイ_ユタカ";
 	wd.width = 1280;
 	wd.height = 720;
 	if (!window.Create(wd)) return -1;
@@ -1055,20 +1104,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent != nullptr);
 
-	// dxcCompilerを初期化
-	IDxcUtils* dxcUtils = nullptr;
-	IDxcCompiler3* dxcCompiler = nullptr;
-	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
-	assert(SUCCEEDED(hr));
+	//// dxcCompilerを初期化
+	//IDxcUtils* dxcUtils = nullptr;
+	//IDxcCompiler3* dxcCompiler = nullptr;
+	//hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
+	//assert(SUCCEEDED(hr));
 
-	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
-	assert(SUCCEEDED(hr));
+	//hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+	//assert(SUCCEEDED(hr));
 
-	// 現時点でincludeはしないが、includeに対応するための設定を行っておく
-	IDxcIncludeHandler* includeHandler = nullptr;
-	hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
+	//// 現時点でincludeはしないが、includeに対応するための設定を行っておく
+	//IDxcIncludeHandler* includeHandler = nullptr;
+	//hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
 
-	assert(SUCCEEDED(hr));
+	//assert(SUCCEEDED(hr));
 
 	//**************************
 	// RootSignature
@@ -1403,33 +1452,36 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//**************************
 	// Shaderをコンパイルする
 	//**************************
+	// ... デバイスやコマンドキューなどの初期化が終わったあたりで
 
-	// Shaderをコンパイルする
+	if (!g_ShaderCompiler.Initialize()) {
+		OutputDebugStringA("[Error] ShaderCompiler.Initialize failed\n");
+		assert(false);
+	}
+
 	IDxcBlob* vertexShaderBlob = CompileShader(
-		L"resources/Object3D.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+		L"resources/Object3D.VS.hlsl", L"vs_6_0");
 	assert(vertexShaderBlob != nullptr);
 
 	IDxcBlob* pixelShaderBlob = CompileShader(
-		L"resources/Object3D.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+		L"resources/Object3D.PS.hlsl", L"ps_6_0");
 	assert(pixelShaderBlob != nullptr);
 
-	IDxcBlob* csBlob = CompileShader(L"MotionDetect.CS.hlsl", L"cs_6_0", dxcUtils,
-		dxcCompiler, includeHandler);
+	IDxcBlob* csBlob = CompileShader(
+		L"MotionDetect.CS.hlsl", L"cs_6_0");
 	assert(csBlob != nullptr);
 
 	//==============================
     // Particle 用 Shader をコンパイル
     //==============================
+
+
 	IDxcBlob* particleVsBlob = CompileShader(
-		L"resources/Particle.VS.hlsl",
-		L"vs_6_0",
-		dxcUtils, dxcCompiler, includeHandler);
+		L"resources/Particle.VS.hlsl", L"vs_6_0");
 	assert(particleVsBlob != nullptr);
 
 	IDxcBlob* particlePsBlob = CompileShader(
-		L"resources/Particle.PS.hlsl",
-		L"ps_6_0",
-		dxcUtils, dxcCompiler, includeHandler);
+		L"resources/Particle.PS.hlsl", L"ps_6_0");
 	assert(particlePsBlob != nullptr);
 
 	//----------------ここまで追加--------------------
@@ -1595,10 +1647,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	baseDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	baseDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	baseDesc.NumRenderTargets = 1;
-	baseDesc.RTVFormats[0] = DXGI_FORMAT_D24_UNORM_S8_UINT;        // 既存を流用
-	baseDesc.DSVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;           // 既存を流用
+	baseDesc.RTVFormats[0] = kRtvFormat;        // 既存を流用
+	baseDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;           // 既存を流用
 	baseDesc.SampleDesc.Count = 1;
-
+	
 	// --- 不透明 PSO ---
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueDesc = baseDesc;
 	opaqueDesc.BlendState = MakeOpaqueBlend();
@@ -1666,8 +1718,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// ★ 10x10 のグリッド状に配置
 		gInstanceTransforms[i].translate = {
 		0.0f-0.01f*i,
-		0.0f-0.01f*i,
-		2.0f+0.01f*i               // カメラよりちょっと奥
+		0.0f+0.01f*i,
+		2.0f+0.01f *i              // カメラよりちょっと奥
 		};
 	}
 
@@ -1981,7 +2033,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	uint16_t indices[] = {
 		0, 1, 2, 2, 1, 3,
 	};
-
+#if defined(_DEBUG)
 	// ImGuiの初期化。詳細はさして重要ではないので解説は省略する。
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -1991,18 +2043,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		srvDescriptorHeap.Get(),
 		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
 		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
+#endif
 	//**************************
 	// Texctureを読んで転送する
 	//**************************
-	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
+	DirectX::ScratchImage mipImages = LoadTexture("resources/beamRamp_lightning.png");
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	ComPtr<ID3D12Resource> textureResource =
 		CreateTextureResource(device, metadata);
 	UploadTextureData(textureResource, mipImages);
 
 	// 2枚目のTextureを読んで転送
-	DirectX::ScratchImage mipImages2 = LoadTexture("resources/monsterBall.png");
+	DirectX::ScratchImage mipImages2 = LoadTexture("resources/streakNoise.png");
 	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
 	ComPtr<ID3D12Resource> textureResource2 =
 		CreateTextureResource(device, metadata2);
@@ -2055,6 +2107,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//commandList->Reset(commandAllocator.Get(), graphicsPipelineState.Get());
 
 	bool useMonsterBall = true;
+
+	//===============================================
+	//BeamようのSRV作成
+	//==============================================
+	// ★ ここでビームレンダラを初期化（textureSrvHandleCPU / CPU2 を流用）
+	g_beam.Initialize(
+		device.Get(),
+		srvDescriptorHeap.Get(),
+		descriptorSizeSRV,
+		textureSrvHandleCPU,   // 1枚目テクスチャ → ramp 用
+		textureSrvHandleCPU2,  // 2枚目テクスチャ → noise 用
+		kRtvFormat,  // RTVフォーマット（rtvDesc.Format と同じ）
+		DXGI_FORMAT_D24_UNORM_S8_UINT     // DSVフォーマット（dsvDesc.Format と同じ）
+	);
+
 
 // ========================================================
 // Instancing 用 SRV 作成 (slot = 10)
@@ -2205,7 +2272,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			DispatchMessage(&msg);
 		}
 		else {
-           #ifdef DEVELOP
+           //#ifdef DEVELOP
+#if defined(_DEBUG)
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
@@ -2268,6 +2336,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			debugCamera.Update();
 			viewMatrix = debugCamera.GetViewMatrix();
 			projMatrix = debugCamera.GetProjectionMatrix();
+
+			// ★ ビーム用 time 更新
+			g_beamTime += 0.016f;
+
+			// ★ PS 定数バッファに time を反映する
+			g_beam.SetTime(g_beamTime);
 
 			// Y軸回転を加算
 			// transform.rotate.y += 0.01f;
@@ -2342,7 +2416,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				sphere.mappedCBV->World = Transpose(Inverse(worldMatrixSphere));
 			}
 
-            #ifdef DEVELOP 
+            //#ifdef DEVELOP 
+          #if defined(_DEBUG)
 			// --- ImGuiでUI構築 ---
 			ImGui::ShowDemoWindow(); // または自作UI
 
@@ -2503,20 +2578,53 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//// 描画！（DrawCall/ドローコール）
 			//commandList->DrawInstanced(6, 1, 0, 0);
 
+			// =====================
+            // ★ ビームのテスト描画
+            // =====================
+
+			{
+				using namespace DirectX;
+
+				// カメラ位置 (0, 0, -5) を適当に仮定
+				XMMATRIX world = XMMatrixScaling(2.0f, 4.0f, 1.0f);          // ビームを縦長に
+				world = XMMatrixMultiply(world, XMMatrixTranslation(0.0f, 0.0f, 5.0f));
+
+				XMMATRIX view = XMMatrixLookAtLH(
+					XMVectorSet(0.f, 0.f, -5.f, 1.f),
+					XMVectorSet(0.f, 0.f, 0.f, 1.f),
+					XMVectorSet(0.f, 1.f, 0.f, 0.f)
+				);
+				XMMATRIX proj = XMMatrixPerspectiveFovLH(
+					XMConvertToRadians(60.0f),
+					static_cast<float>(1280.0f) / static_cast<float>(720.0f),
+					0.1f,
+					100.0f
+				);
+
+				XMMATRIX wvp = world * view * proj;
+
+				XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+				float intensity = 1.0f;
+
+				g_beam.DrawTest(commandList.Get(), wvp, color, intensity);
+			}
+
+
 			// 安全にステートを再設定してから球を描画
 			commandList->IASetVertexBuffers(0, 1, &sphere.vbv);
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			// --- 球用ステートを明示的に再設定 ---
-			commandList->SetGraphicsRootConstantBufferView(
-				0, materialResource->GetGPUVirtualAddress());
-		/*	commandList->SetGraphicsRootDescriptorTable(
-				2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);*/
-			commandList->SetGraphicsRootConstantBufferView(
-				3, directionalLightResource->GetGPUVirtualAddress());
+		//	// --- 球用ステートを明示的に再設定 ---
+		//	commandList->SetGraphicsRootConstantBufferView(
+		//		0, materialResource->GetGPUVirtualAddress());
+		///*	commandList->SetGraphicsRootDescriptorTable(
+		//		2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);*/
+		//	commandList->SetGraphicsRootConstantBufferView(
+		//		3, directionalLightResource->GetGPUVirtualAddress());
 
-#ifdef DEVELOP
+//#ifdef DEVELOP
+  #if defined(_DEBUG)
 			// ImGuiの描画コマンドをコマンドリストに積む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 #endif
@@ -2572,12 +2680,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::string dateString = std::format("{:%Y%m%d_%H%M%S}", localTime);
 	std::string logFilePath = std::string("logs/") + dateString + "log";
 	std::ofstream logStream(logFilePath);
-
+#if defined(_DEBUG)
 	// ImGuiの終了処理
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
-
+#endif
 	//**************************
 	// DirectX12のオブジェクトを解放
 	//**************************
@@ -2664,9 +2772,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sphere.cbvResource = nullptr;
 	}*/
 
-	includeHandler->Release();
+	/*includeHandler->Release();
 	dxcCompiler->Release();
-	dxcUtils->Release();
+	dxcUtils->Release();*/
 
 	// graphicsPipelineState->Release();
 	signatureBlob->Release();

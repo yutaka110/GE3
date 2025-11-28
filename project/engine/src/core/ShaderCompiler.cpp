@@ -103,7 +103,8 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileFromFile(
 #else
     args.push_back(L"-O3");                // Release 時は最適化
 #endif
-
+    // ★ ここを追加：行優先レイアウトを強制
+    args.push_back(L"-Zpr");
     for (auto a : extraArgs) {
         args.push_back(a);
     }

@@ -174,12 +174,17 @@
     <ClCompile Include="engine\src\graphics\PipelineBuilder.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="application\src\particle\BeamRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Object3D.VS.hlsl" />
     <FxCompile Include="Object3D.PS.hlsl" />
     <FxCompile Include="Resources\Particle.PS.hlsl" />
     <FxCompile Include="Resources\Particle.VS.hlsl" />
+    <FxCompile Include="Resources\Beam3D.VS.hlsl" />
+    <FxCompile Include="Resources\Beam3D.PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Matrix4x4.h">
@@ -303,6 +308,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\include\utils\ProjectSettings.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="application\particle\BeamRenderer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="application\include\particle\BeamRenderer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
