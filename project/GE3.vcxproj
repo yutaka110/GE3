@@ -156,6 +156,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="application\src\particle\BeamRenderer.cpp" />
+    <ClCompile Include="application\src\renderer\DebugSceneRenderer.cpp" />
     <ClCompile Include="AppMain.cpp" />
     <ClCompile Include="CameraCapture.cpp" />
     <ClCompile Include="ColorConverter.cpp" />
@@ -166,6 +167,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\src\core\Device.cpp" />
     <ClCompile Include="engine\src\core\ShaderCompiler.cpp" />
     <ClCompile Include="engine\src\graphics\PipelineBuilder.cpp" />
+    <ClCompile Include="engine\src\graphics\RenderContext.cpp" />
     <ClCompile Include="engine\src\graphics\SwapChain.cpp" />
     <ClCompile Include="engine\src\input\Input.cpp" />
     <ClCompile Include="engine\src\platform\Win32App.cpp" />
@@ -248,6 +250,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="application\include\particle\BeamRenderer.h" />
+    <ClInclude Include="application\include\renderer\DebugSceneRenderer.h" />
     <ClInclude Include="application\particle\BeamRenderer.h" />
     <ClInclude Include="AppMain.h" />
     <ClInclude Include="CameraCapture.h" />
@@ -259,6 +262,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\include\core\Device.h" />
     <ClInclude Include="engine\include\core\ShaderCompiler.h" />
     <ClInclude Include="engine\include\graphics\pipelineBuilder.h" />
+    <ClInclude Include="engine\include\graphics\RenderContext.h" />
     <ClInclude Include="engine\include\graphics\SwapChain.h" />
     <ClInclude Include="engine\include\input\Input.h" />
     <ClInclude Include="engine\include\platform\Win32App.h" />
