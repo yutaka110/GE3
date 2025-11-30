@@ -77,6 +77,7 @@
 #include "core/CommandListPool.h"
 #include "core/DescriptorHeap.h"
 #include "core/ShaderCompiler.h"  // ★ 追加
+#include "graphics/RenderContext.h"
 using ge3::core::ShaderCompiler;
 #include "particle/BeamRenderer.h"
 #include <DirectXMath.h>
@@ -1074,6 +1075,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	auto dsvH = g_descHeaps.dsv.Allocate();
 	device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvH.cpu);
 	g_mainDsvIndex = dsvH.index;
+
 
 
 
