@@ -1,7 +1,7 @@
-#include"DebugCamera.h"
+#include"camera/DebugCamera.h"
 #include<numbers>
 #include <Windows.h>
-void DebugCamera:: Initialize() {
+void DebugCamera::Initialize() {
     // 初期値の設定
     rotation_ = { 0.0f, 0.0f, 0.0f };
     translation_ = { 0.0f, 0.0f, -50.0f };
@@ -17,8 +17,8 @@ void DebugCamera:: Initialize() {
 
 void DebugCamera::Update() {
 
-   /* KeyInput keyInput;
-    keyInput.Initialize( hwnd);*/
+    /* KeyInput keyInput;
+     keyInput.Initialize( hwnd);*/
 
     const float moveSpeed = 0.1f;
     const float rotateSpeed = 0.02f;

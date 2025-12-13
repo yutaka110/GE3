@@ -1,5 +1,5 @@
 #pragma once
-#include "Matrix4x4.h"
+#include "utils/math/MathUtils.h"
 /// <summary>
 /// デバッグカメラ
 /// </summary>
@@ -19,13 +19,13 @@ public:
 	void Initialize();
 
 	Matrix4x4 GetViewMatrix() const { return viewMatrix_; }
-    Matrix4x4 GetProjectionMatrix() const { return projectionMatrix_; }
+	Matrix4x4 GetProjectionMatrix() const { return projectionMatrix_; }
 
 	/// <summary>
 	/// 更新
 	/// </summary>
 	void Update();
-	
+
 	// X, Y, Z軸回りのローカル回転角
 	Vector3 rotation_ = { 0, 0, 0 };
 
