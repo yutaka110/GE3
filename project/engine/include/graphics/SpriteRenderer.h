@@ -2,7 +2,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
-#include "Math/MathUtils.h"     // Matrix4x4 / Transform / Vector4 など
+#include "utils/Math/MathUtils.h"     // Matrix4x4 / Transform / Vector4 など
 #include "graphics/RenderContext.h"
 #include "graphics/Sprite.h"
 

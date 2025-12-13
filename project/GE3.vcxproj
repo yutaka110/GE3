@@ -161,7 +161,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="CameraCapture.cpp" />
     <ClCompile Include="ColorConverter.cpp" />
     <ClCompile Include="CustomByteStream.cpp" />
-    <ClCompile Include="DebugCamera.cpp" />
+    <ClCompile Include="engine\src\camera\debugCamera.cpp" />
     <ClCompile Include="engine\src\core\CommandListPool.cpp" />
     <ClCompile Include="engine\src\core\DescriptorHeap.cpp" />
     <ClCompile Include="engine\src\core\Device.cpp" />
@@ -174,7 +174,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\src\platform\Win32App.cpp" />
     <ClCompile Include="engine\src\platform\Window.cpp" />
     <ClCompile Include="engine\src\utils\Checked.cpp" />
+    <ClCompile Include="engine\src\utils\dx12\BufferHelper.cpp" />
     <ClCompile Include="engine\src\utils\Logger.cpp" />
+    <ClCompile Include="engine\src\utils\math\MathUtils.cpp" />
     <ClCompile Include="engine\src\utils\StringConv.cpp" />
     <ClCompile Include="engine\src\utils\utill.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp" />
@@ -257,7 +259,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="CameraCapture.h" />
     <ClInclude Include="ColorConverter.h" />
     <ClInclude Include="CustomByteStream.h" />
-    <ClInclude Include="DebugCamera.h" />
+    <ClInclude Include="engine\include\camera\debugCamera.h" />
     <ClInclude Include="engine\include\core\CommandListPool.h" />
     <ClInclude Include="engine\include\core\DescriptorHeap.h" />
     <ClInclude Include="engine\include\core\Device.h" />
@@ -271,7 +273,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\include\platform\Win32App.h" />
     <ClInclude Include="engine\include\platform\Window.h" />
     <ClInclude Include="engine\include\utils\Checked.h" />
+    <ClInclude Include="engine\include\utils\dx12\BufferHelper.h" />
     <ClInclude Include="engine\include\utils\Logger.h" />
+    <ClInclude Include="engine\include\utils\math\MathUtils.h" />
+    <ClInclude Include="engine\include\utils\math\Vector.h" />
     <ClInclude Include="engine\include\utils\ProjectSettings.h" />
     <ClInclude Include="engine\include\utils\StringConv.h" />
     <ClInclude Include="engine\include\utils\utill.h" />

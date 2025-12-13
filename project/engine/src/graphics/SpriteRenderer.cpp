@@ -4,7 +4,7 @@
 #include <cmath>
 
 // あなたの環境の CreateBufferResource に合わせて include
-#include "BufferHelper.h"   // CreateBufferResource(device, size) 的なヘルパーに合わせて
+#include "utils/dx12/BufferHelper.h"   // CreateBufferResource(device, size) 的なヘルパーに合わせて
 
 using Microsoft::WRL::ComPtr;
 

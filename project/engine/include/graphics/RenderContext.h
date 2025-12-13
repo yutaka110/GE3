@@ -41,7 +41,7 @@ namespace ge3 {
             D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const { return dsvHandle_; }
 
         private:
-            Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTexture(
+            Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(
                 std::uint32_t width,
                 std::uint32_t height
             );
