@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -155,9 +155,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="application\AppMain.cpp" />
     <ClCompile Include="application\src\particle\BeamRenderer.cpp" />
     <ClCompile Include="application\src\renderer\DebugSceneRenderer.cpp" />
-    <ClCompile Include="AppMain.cpp" />
     <ClCompile Include="CameraCapture.cpp" />
     <ClCompile Include="ColorConverter.cpp" />
     <ClCompile Include="CustomByteStream.cpp" />
@@ -256,10 +256,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="application\AppMain.h" />
     <ClInclude Include="application\include\particle\BeamRenderer.h" />
     <ClInclude Include="application\include\renderer\DebugSceneRenderer.h" />
     <ClInclude Include="application\particle\BeamRenderer.h" />
-    <ClInclude Include="AppMain.h" />
     <ClInclude Include="CameraCapture.h" />
     <ClInclude Include="ColorConverter.h" />
     <ClInclude Include="CustomByteStream.h" />
