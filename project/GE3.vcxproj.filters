@@ -129,9 +129,6 @@
     <ClCompile Include="lib\Receiver\startTcpReciverRgb32.cpp">
       <Filter>ソース ファイル\Receiver</Filter>
     </ClCompile>
-    <ClCompile Include="AppMain.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="engine\src\core\CommandListPool.cpp">
       <Filter>ソース ファイル\engine\core</Filter>
     </ClCompile>
@@ -204,10 +201,13 @@
     <ClCompile Include="engine\src\utils\DebugTools.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="app\AppMain.cpp">
+    <ClCompile Include="application\AppMain.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="application\AppMain.cpp">
+    <ClCompile Include="application\AppPipelines.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="application\EngineContext.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -294,9 +294,6 @@
     </ClInclude>
     <ClInclude Include="lib\Receiver\startTcpReceiverRgb32.h">
       <Filter>ヘッダー ファイル\Reciever</Filter>
-    </ClInclude>
-    <ClInclude Include="AppMain.h">
-      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\include\core\CommandListPool.h">
       <Filter>ヘッダー ファイル\engine\core</Filter>
@@ -389,6 +386,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="application\AppMain.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="application\AppPipelines.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="application\EngineContext.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

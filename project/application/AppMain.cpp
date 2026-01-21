@@ -1396,8 +1396,9 @@ int AppMain::Run() {
 	motionMaskRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	motionMaskRange.OffsetInDescriptorsFromTableStart = 0;
 
-	// RootParameter作成。接続数をできるので配列。今回は根根1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER rootParameters[6] = {};
+	// RootParameter作成。接続数をできるので配列。
+	// b2(Camera) を追加するため 6 -> 7 に拡張
+	D3D12_ROOT_PARAMETER rootParameters[7] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
 	rootParameters[0].ShaderVisibility =
 		D3D12_SHADER_VISIBILITY_PIXEL;               // PixelShaderで使う
@@ -1436,6 +1437,11 @@ int AppMain::Run() {
 	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
 	rootParameters[5].DescriptorTable.pDescriptorRanges = &motionMaskRange;
+
+	// カメラ位置（Specular 計算に必要）: PS 用 CBV b2
+	rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[6].Descriptor.ShaderRegister = 2; // register(b2)
 
 	// ルートパラメータ配列へのポインタ
 	descriptionRootSignature.pParameters = rootParameters;
@@ -2138,7 +2144,8 @@ int AppMain::Run() {
 	// デフォルト値としてとりあえず以下のようにしておく
 	directionalLightData.color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白色光
 
-	Vector3 dir = { 0.0f, -1.0f, 0.0f };
+		// 完成例の見た目（球の右上にハイライトが出る）に近い向き
+		Vector3 dir = { 0.21f, -0.978f, 0.0f };
 
 	// 方向を正規化する
 	float length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
@@ -2147,12 +2154,30 @@ int AppMain::Run() {
 	dir.z /= length;
 	directionalLightData.direction = dir;
 
-	directionalLightData.intensity = 1.0f;
+		// 完成例では少し強めでも見栄えが良い
+		directionalLightData.intensity = 1.5f;
 	ComPtr<ID3D12Resource> directionalLightResource =
 		CreateBufferResource(device, sizeof(DirectionalLight));
 	DirectionalLight* mappedLight = nullptr;
 	directionalLightResource->Map(0, nullptr,
 		reinterpret_cast<void**>(&mappedLight));
+
+	// -----------------------------
+	// Camera 定数バッファ（PS: b2）
+	// Specular 計算で「表面 -> カメラ方向(V)」が必要になるため、
+	// CPU 側からカメラのワールド座標を渡す
+	// -----------------------------
+	struct CameraForGPU {
+		Vector3 worldPosition;
+		float padding; // 16byte アライン
+	};
+	ComPtr<ID3D12Resource> cameraResource =
+		CreateBufferResource(device, sizeof(CameraForGPU));
+	CameraForGPU* mappedCamera = nullptr;
+	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedCamera));
+	// 初期値（デバッグカメラが更新されるまでの保険）
+	mappedCamera->worldPosition = Vector3{ 0.0f, 0.0f, -5.0f };
+	mappedCamera->padding = 0.0f;
 
 	// まずVertexShaderで利用するtransformationMatrix用のResourceを作る
 	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4
@@ -2266,6 +2291,9 @@ int AppMain::Run() {
 	materialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	materialData->enableLighting = true;
+	// Phong の光沢度（大きいほどハイライトが鋭い）
+	// 課題の完成例に近いツヤ感にする（値が大きいほどハイライトが小さく鋭くなる）
+	materialData->shininess = 32.0f;
 
 	// UVTransform行列を単位行列で初期化
 	materialData->uvTransform = MakeIdentity4x4();
@@ -2283,6 +2311,7 @@ int AppMain::Run() {
 	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	materialDataSprite->enableLighting = false;
+	materialDataSprite->shininess = 1.0f;
 
 	// UVTransform行列を単位行列で初期化
 	materialDataSprite->uvTransform = MakeIdentity4x4();
@@ -2312,7 +2341,7 @@ int AppMain::Run() {
 
 	// Transform変数を作る
 	Transform transform{
-		{1.0f, 1.0f, 1.0f}, // scale（等倍）
+		{3.0f, 3.0f, 3.0f}, // scale（等倍）
 		{0.0f, 0.0f, 0.0f}, // rotate（回転なし）
 		{0.0f, 0.0f, 0.0f}  // translate（原点）
 	};
@@ -2367,14 +2396,14 @@ int AppMain::Run() {
 	//**************************
 	// Texctureを読んで転送する
 	//**************************
-	DirectX::ScratchImage mipImages = LoadTexture("resources/beamRamp_lightning.png");
+	DirectX::ScratchImage mipImages = LoadTexture("resources/monsterBall.png");
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	ComPtr<ID3D12Resource> textureResource =
 		CreateTextureResource(device, metadata);
 	UploadTextureData(textureResource, mipImages);
 
 	// 2枚目のTextureを読んで転送
-	DirectX::ScratchImage mipImages2 = LoadTexture("resources/circle.png");
+	DirectX::ScratchImage mipImages2 = LoadTexture("resources/monsterBall.png");
 	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
 	ComPtr<ID3D12Resource> textureResource2 =
 		CreateTextureResource(device, metadata2);
@@ -2421,12 +2450,96 @@ int AppMain::Run() {
 		textureSrvHandleCPU2);
 
 	SphereMeshData sphere{};
+	// ------------------------------------------------------------
+	// Sphere mesh (MonsterBall) : POSITION(float4) -> TEXCOORD(float2) -> NORMAL(float3)
+	// InputLayout と完全一致させることで、点々ハイライト(法線崩壊)を防ぐ
+	// ------------------------------------------------------------
+	struct SphereVertex {
+		float position[4]; // POSITION : float4
+		float texcoord[2]; // TEXCOORD : float2
+		float normal[3];   // NORMAL   : float3
+	};
+
+	auto BuildSphereVertices = [](uint32_t stackCount, uint32_t sliceCount) {
+		std::vector<SphereVertex> v;
+		v.reserve(stackCount * sliceCount * 6);
+		for (uint32_t y = 0; y < stackCount; ++y) {
+			float v0 = (float)y / (float)stackCount;
+			float v1 = (float)(y + 1) / (float)stackCount;
+			float phi0 = v0 * std::numbers::pi_v<float>; // 0..PI
+			float phi1 = v1 * std::numbers::pi_v<float>;
+			for (uint32_t x = 0; x < sliceCount; ++x) {
+				float u0 = (float)x / (float)sliceCount;
+				float u1 = (float)(x + 1) / (float)sliceCount;
+				float theta0 = u0 * (std::numbers::pi_v<float> * 2.0f); // 0..2PI
+				float theta1 = u1 * (std::numbers::pi_v<float> * 2.0f);
+
+				auto MakeV = [](float phi, float theta, float u, float v) {
+					SphereVertex sv{};
+					float sx = std::sin(phi) * std::cos(theta);
+					float sy = std::cos(phi);
+					float sz = std::sin(phi) * std::sin(theta);
+					sv.position[0] = sx;
+					sv.position[1] = sy;
+					sv.position[2] = sz;
+					sv.position[3] = 1.0f;
+					sv.texcoord[0] = u;
+					sv.texcoord[1] = v;
+					sv.normal[0] = sx;
+					sv.normal[1] = sy;
+					sv.normal[2] = sz;
+					return sv;
+				};
+
+				SphereVertex a = MakeV(phi0, theta0, u0, v0);
+				SphereVertex b = MakeV(phi0, theta1, u1, v0);
+				SphereVertex c = MakeV(phi1, theta0, u0, v1);
+				SphereVertex d = MakeV(phi1, theta1, u1, v1);
+
+				// 2 triangles : a-c-b , b-c-d
+				v.push_back(a);
+				v.push_back(c);
+				v.push_back(b);
+				v.push_back(b);
+				v.push_back(c);
+				v.push_back(d);
+			}
+		}
+		return v;
+	};
+
+	// Sphere VB / CBV 作成
+	const uint32_t sphereStacks = 32;
+	const uint32_t sphereSlices = 64;
+	std::vector<SphereVertex> sphereVerts = BuildSphereVertices(sphereStacks, sphereSlices);
+	sphere.vertexCount = (UINT)sphereVerts.size();
+	sphere.vertexResource = CreateBufferResource(device.Get(), sizeof(SphereVertex) * sphere.vertexCount);
+	{
+		SphereVertex* mappedVB = nullptr;
+		sphere.vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedVB));
+		memcpy(mappedVB, sphereVerts.data(), sizeof(SphereVertex) * sphere.vertexCount);
+		sphere.vertexResource->Unmap(0, nullptr);
+	}
+	sphere.vbv.BufferLocation = sphere.vertexResource->GetGPUVirtualAddress();
+	sphere.vbv.SizeInBytes = (UINT)(sizeof(SphereVertex) * sphere.vertexCount);
+	sphere.vbv.StrideInBytes = sizeof(SphereVertex);
+
+	// 球のWVP/World（b0 想定）
+	sphere.cbvResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
+	sphere.mappedCBV = nullptr;
+	sphere.cbvResource->Map(0, nullptr, reinterpret_cast<void**>(&sphere.mappedCBV));
+	// 初期値（毎フレーム更新するが保険）
+	sphere.mappedCBV->WVP = MakeIdentity4x4();
+	sphere.mappedCBV->World = MakeIdentity4x4();
+	sphere.mappedCBV->WorldInverseTranspose = MakeIdentity4x4();
 
 	//// コマンドアロケータとコマンドリストをReset
 	//commandAllocator->Reset();
 	//commandList->Reset(commandAllocator.Get(), graphicsPipelineState.Get());
 
 	bool useMonsterBall = true;
+	// 課題の完成例は「球体1つ＋ライト調整UI」なので、パーティクルはデフォルトOFF
+	bool enableParticles = false;
 
 	//===============================================
 	//BeamようのSRV作成
@@ -2599,6 +2712,8 @@ int AppMain::Run() {
 					// ゲームの処理
 					//**************************
 		debugCamera.Update();
+			// PS(b2) にカメラのワールド座標を反映（Specular 用）
+			mappedCamera->worldPosition = debugCamera.translation_;
 		viewMatrix = debugCamera.GetViewMatrix();
 		projMatrix = debugCamera.GetProjectionMatrix();
 
@@ -2626,14 +2741,16 @@ int AppMain::Run() {
 		// ★ここで毎フレームインスタンス行列を更新
 		//UpdateInstanceMatrices(viewProjectionMatrix, deltaTime);
 		//uint32_t drawCount = UpdateInstanceMatrices(viewProjectionMatrix, deltaTime);
-		emitter.frequencyTime += deltaTime;
 
-		if (emitter.frequencyTime >= emitter.frequency) {
-			particles.splice(particles.end(), Emit(emitter, randomEngine));
-			emitter.frequencyTime -= emitter.frequency; // 余りを残す（ズレ防止）
-		}
+		//鏡面反射で消すところ
+		//emitter.frequencyTime += deltaTime;
 
-		drawCount = UpdateInstanceMatrices_List(viewProjectionMatrix, deltaTime);
+		//if (emitter.frequencyTime >= emitter.frequency) {
+		//	particles.splice(particles.end(), Emit(emitter, randomEngine));
+		//	emitter.frequencyTime -= emitter.frequency; // 余りを残す（ズレ防止）
+		//}
+
+		//drawCount = UpdateInstanceMatrices_List(viewProjectionMatrix, deltaTime);
 
 
 		};
@@ -2702,16 +2819,16 @@ int AppMain::Run() {
 		UpdateFrame();
 
 		//**************************
-					// デコードされた映像取得と解析
-					//**************************
+		// デコードされた映像取得と解析
+		//**************************
 
-						//**************************
-						// 描画処理
-						//**************************
+		//**************************
+		// 描画処理
+		//**************************
 
-						//**************************
-						// 座標変換行列を作成
-						//**************************
+		//**************************
+		// 座標変換行列を作成
+		//**************************
 		Matrix4x4 worldMatrix = MakeAffineMatrix(
 			transform.scale, transform.rotate, transform.translate);
 
@@ -2748,13 +2865,19 @@ int AppMain::Run() {
 			debugCamera.GetViewMatrix(); // viewMatrix を取得
 		Matrix4x4 projectionMatrixSphere =
 			debugCamera.GetProjectionMatrix(); // projectionMatrix を取得
-		Matrix4x4 wvpSphere = Multiply(
-			worldMatrixSphere, Multiply(viewMatrixSphere, projectionMatrix));
+			Matrix4x4 wvpSphere = Multiply(
+				worldMatrixSphere, Multiply(viewMatrixSphere, projectionMatrixSphere));
 
-		if (sphere.mappedCBV) {
-			sphere.mappedCBV->WVP = wvpSphere;
-			sphere.mappedCBV->World = Transpose(Inverse(worldMatrixSphere));
-		}
+			if (sphere.mappedCBV) {
+				sphere.mappedCBV->WVP = wvpSphere;
+				// World はそのまま渡す（PS側で必要に応じて使う）
+				sphere.mappedCBV->World = worldMatrixSphere;
+
+				sphere.mappedCBV->WorldInverseTranspose =
+					Transpose(Inverse(worldMatrixSphere));   // ←これを追加
+			}
+
+			
 
 		//#ifdef DEVELOP 
 #if defined(_DEBUG)||DEVELOP
@@ -2774,6 +2897,7 @@ int AppMain::Run() {
 		// 輝度を調整（例：0.0〜10.0）
 		ImGui::SliderFloat("Intensity", &directionalLightData.intensity, 0.0f,
 			10.0f);
+			ImGui::Checkbox("Show Particles", &enableParticles);
 
 
 		ImGui::Begin("Material Settings");
@@ -2870,6 +2994,10 @@ int AppMain::Run() {
 		commandList->SetGraphicsRootConstantBufferView(
 			3, directionalLightResource->GetGPUVirtualAddress());
 
+		// camera用のCBufferの場所を設定（Specular 用）
+		commandList->SetGraphicsRootConstantBufferView(
+			6, cameraResource->GetGPUVirtualAddress());
+
 		ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 		commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
@@ -2880,21 +3008,32 @@ int AppMain::Run() {
 
 
 
-		//commandList->SetGraphicsRootDescriptorTable(2, receivedSrvHandleGPU);
+			// ---- ここから: 課題の球体(モンスターボール)描画 ----
+			// ※ 以前の「フルスクリーン矩形を10インスタンス描画」は課題の見た目と無関係で
+			//    画面に四角いゴミが出る原因になっていたため、球体描画に差し替える
+			commandList->SetGraphicsRootSignature(rootSignature.Get());
+			commandList->SetPipelineState(graphicsPipelineState.Get());
 
-		// commandList->SetGraphicsRootDescriptorTable(2,
-		//                                             motionMaskSRVHandle); //
-		//                                             t2用
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			commandList->IASetVertexBuffers(0, 1, &sphere.vbv);
 
-		commandList->DrawInstanced(6, 10, 0, 0); // フルスクリーン矩形に描画
+			// Material / WVP / Texture / Light / Camera
+			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(1, sphere.cbvResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2); // MonsterBall
+			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(6, cameraResource->GetGPUVirtualAddress());
+
+			commandList->DrawInstanced(sphere.vertexCount, 1, 0, 0);
+			// ---- ここまで: 球体描画 ----
 
 		//// 描画！（DrawCall／ドローコール）6個のインデックスを使用し1つのインスタンスを描画。その他は当面0で良い
 		//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
-		// ================================
-		// ① Particle Instancing の描画
-		// ================================
-		{
+			// ================================
+			// ① Particle Instancing の描画（課題の完成例では不要なのでデフォルトOFF）
+			// ================================
+			if (enableParticles) {
 			// Particle 用 RootSignature & PSO
 			commandList->SetGraphicsRootSignature(particleRootSignature.Get());
 			commandList->SetPipelineState(particlePipelineState.Get());
@@ -2913,12 +3052,15 @@ int AppMain::Run() {
 				2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 
 			// インデックス 6個（四角形）× インスタンス数 だけ描画
-			commandList->DrawIndexedInstanced(6, drawCount, 0, 0, 0);
-		}
+				commandList->DrawIndexedInstanced(6, drawCount, 0, 0, 0);
+			}
 
 		// ★ここで main に戻す！
 		commandList->SetGraphicsRootSignature(rootSignature.Get());
 		commandList->SetPipelineState(graphicsPipelineState.Get());
+		// RootSignature を戻したので camera CBV も再設定しておく（安全策）
+		commandList->SetGraphicsRootConstantBufferView(
+			6, cameraResource->GetGPUVirtualAddress());
 		//---------------------ここまで追加------------------------
 
 

@@ -156,6 +156,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="application\AppMain.cpp" />
+    <ClCompile Include="application\AppPipelines.cpp" />
+    <ClCompile Include="application\EngineContext.cpp" />
     <ClCompile Include="application\src\particle\BeamRenderer.cpp" />
     <ClCompile Include="application\src\renderer\DebugSceneRenderer.cpp" />
     <ClCompile Include="CameraCapture.cpp" />
@@ -257,6 +259,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="application\AppMain.h" />
+    <ClInclude Include="application\AppPipelines.h" />
+    <ClInclude Include="application\EngineContext.h" />
     <ClInclude Include="application\include\particle\BeamRenderer.h" />
     <ClInclude Include="application\include\renderer\DebugSceneRenderer.h" />
     <ClInclude Include="application\particle\BeamRenderer.h" />
