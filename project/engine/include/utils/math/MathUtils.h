@@ -1,6 +1,7 @@
 #pragma once
 #include "utils/math/Vector.h"
-
+#include <vector>
+#include <string>
 //================================
 // 行列・変換系の構造体
 //================================
@@ -52,6 +53,50 @@ struct DirectionalLight
     Vector3 direction;  ///< ライトの向き（単位ベクトル）
     float   intensity;  ///< 輝度（明るさ）
 };
+
+struct PointLight {
+    Vector4 color;
+    Vector3 position;
+    float intensity;
+    float radius;      // 4
+    float decay;       // 4
+    float padding[2];  // 8 -> 合計48（16の倍数）
+};
+
+struct SpotLight
+{
+    Vector4 color;
+    Vector3 position;
+    float intensity;
+
+    Vector3 direction;
+    float distance;
+
+    float decay;
+    float cosAngle;
+    float padding[2]; // 16byte alignment
+};
+
+// MaterialData構造体
+struct MaterialData {
+    std::string textureFilePath;
+};
+
+struct Node {
+    Matrix4x4 localMatrix;        // Nodeのローカル変換
+    std::string name;             // Node名
+    std::vector<Node> children;   // 子
+};
+
+// ModelData構造体
+struct ModelData {
+    std::vector<VertexData> vertices;
+    MaterialData material;
+    Node rootNode;
+};
+
+
+
 
 //================================
 // 関数プロトタイプ
