@@ -1,124 +1,3 @@
-
-//#include"Object3d.hlsli"
-
-
-
-//struct Material
-//{
-//    float32_t4 color;
-//    int32_t enableLighting;
-//    float32_t4x4 uvTransform;
-//    float shininess; // 追加
-//    float3 pad_; // 16byte alignment 用
-//};
-
-//cbuffer Camera : register(b2)
-//{
-//    float3 cameraWorldPosition;
-//    float padCam;
-//}
-
-
-//ConstantBuffer<Material> gMaterial  : register(b0);
-//Texture2D<float4> gTexture : register(t0);
-//SamplerState gSampler : register(s0);
-//Texture2D<float4> gReceivedTex : register(t4); // 受信画像テクスチャ
-//Texture2D<float4> motionMaskTex : register(t2);
-
-//struct PixelShaderOutput
-//{
-//    float4 color : SV_TARGET0;
-//};
-
-//struct DirectionalLight
-//{
-//    float4 color; // ライトの色
-//    float3 direction; // ライトの向き（単位ベクトル）
-//    float intensity; // 輝度
-//};
-
-//ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
-
-
-
-
-///*PixelShaderOutput main(VertexShaderOutput input)
-//{
-//    PixelShaderOutput output;
-//    output.color = gMaterial.color;
-//    // テクスチャをサンプリングして色を取得
-//   // float4 textureColor = gTexture.Sample(gSampler, input.texcoord);
-   
-//    float4 transformedUV = mul(float32_t4(input.texcoord,0.0f, 1.0f), gMaterial.uvTransform);
-//    float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-//   // float4 textureColor = gReceivedTex.Sample(gSampler, transformedUV.xy);
-
-//    output.color = gMaterial.color * textureColor;
-    
-//    if (gMaterial.enableLighting != 0) { // Lightingする場合
-//    float NdotL = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
-//    float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-//        output.color = gMaterial.color * gDirectionalLight.color * cos * gDirectionalLight.intensity * textureColor;
-//    } else { // Lightingしない場合（前回までと同じ）
-//    output.color = gMaterial.color * textureColor;
-//}
-//    return output;
-//}*/
-
-//PixelShaderOutput main(VertexShaderOutput input)
-//{
-//    PixelShaderOutput output;
-
-//    float4 texColor = gTexture.Sample(gSampler, input.texcoord);
-//    float4 maskColor = motionMaskTex.Sample(gSampler, input.texcoord);
-
-//    float3 baseRgb = texColor.rgb * gMaterial.color.rgb;
-//    float baseA = texColor.a * gMaterial.color.a;
-
-//    float3 outRgb = baseRgb;
-
-//    if (gMaterial.enableLighting != 0)
-//    {
-//        float3 N = normalize(input.normal);
-
-//        // direction が「光が進む方向」なら、ピクセルへ向かう光は -direction
-//        float3 L = normalize(gDirectionalLight.direction);
-
-//        // Diffuse（あなたが使ってる HalfLambert の形）
-//        float NdotL = saturate(dot(N, L));
-//        float halfLambert = pow(NdotL * 0.5f + 0.5f, 2.0f);
-
-//        float3 diffuse =
-//            baseRgb *
-//            gDirectionalLight.color.rgb *
-//            halfLambert *
-//            gDirectionalLight.intensity;
-
-//        // Specular（Phong）ra
-//        float3 V = normalize(input.worldPosition - cameraWorldPosition);
-
-//        // reflect(I,N) の I は入射ベクトル → 入射は -L
-//        float3 R = reflect(-L, N);
-
-//        float specPow = pow(saturate(dot(R, V)), gMaterial.shininess);
-
-//        // 鏡面色は白固定（資料と同じ）。後で material化してもOK
-//        float3 specular =
-//            gDirectionalLight.color.rgb *
-//            gDirectionalLight.intensity *
-//            specPow;
-
-//        outRgb = diffuse + specular;
-//    }
-
-//    // motionMask を赤くブレンドしたいなら（必要ならON）
-//    // float3 highlight = float3(1.0f, 0.0f, 0.0f);
-//    // outRgb = lerp(outRgb, highlight, maskColor.r);
-
-//    output.color = float4(outRgb, baseA);
-//    return output;
-//}
-
 #include "Object3d.hlsli"
 
 // ------------------------------------------------------------
@@ -140,6 +19,32 @@ struct DirectionalLight
     float intensity; // brightness
 };
 
+struct PointLight
+{
+    float4 color; // ライトの色
+    float3 position; // ライト位置
+    float intensity; // 輝度
+    float radius; // 影響半径（最大距離）
+    float decay; // 減衰の指数（大きいほど急激）
+    float2 pad_; // 16byte alignment（重要）
+};
+
+struct SpotLight
+{
+    float4 color;
+    float3 position;
+    float intensity;
+    float3 direction; // スポットが向く方向（ワールド、単位ベクトル）
+    float distance; // 最大到達距離
+    float decay; // 減衰指数
+    float cosAngle; // 内側円錐のcos（例: cos(pi/3)）
+    float pad_; // 16byte alignment
+};
+
+ConstantBuffer<SpotLight> gSpotLight : register(b4);
+
+
+
 cbuffer Camera : register(b2)
 {
     float3 cameraWorldPosition;
@@ -148,6 +53,9 @@ cbuffer Camera : register(b2)
 
 ConstantBuffer<Material> gMaterial : register(b0);
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
+
+// ★追加：PointLight は b3（資料どおり）
+ConstantBuffer<PointLight> gPointLight : register(b3);
 
 Texture2D<float4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
@@ -175,14 +83,12 @@ struct PixelShaderOutput
 
 // ------------------------------------------------------------
 // Safe normalize (prevents NaN when vector length is near zero)
-// This fixes "weird streak/line" artifacts in highlights.
 // ------------------------------------------------------------
 static float3 SafeNormalize(float3 v)
 {
     float len2 = dot(v, v);
     if (len2 < 1e-8f)
     {
-        // return any stable direction; purpose is only to avoid NaN
         return float3(0.0f, 0.0f, 1.0f);
     }
     return v * rsqrt(len2);
@@ -194,10 +100,6 @@ static float3 SafeNormalize(float3 v)
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
-
-    // UV transform (enable if needed)
-    // float4 uv4 = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
-    // float2 uv = uv4.xy;
 
     float2 uv = input.texcoord;
 
@@ -211,54 +113,134 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     if (gMaterial.enableLighting != 0)
     {
-        // Normal (must be in the same space as L and V)
         float3 N = SafeNormalize(input.normal);
 
-        // Light vector L:
-        // Here we assume gDirectionalLight.direction is "light -> travels direction" (light -> pixel),
-        // so pixel -> light becomes -direction.
-        // If lighting looks reversed, flip the sign here.
-        float3 L = SafeNormalize(-gDirectionalLight.direction);
-
-        // View vector V (pixel -> camera)
+        // V = pixel -> camera
         float3 V = SafeNormalize(cameraWorldPosition - input.worldPosition);
 
-        // Diffuse (Half-Lambert)
-        float NdotL = saturate(dot(N, L));
-        float halfLambert = pow(NdotL * 0.5f + 0.5f, 2.0f);
+        //========================================================
+        // 1) DirectionalLight 分
+        //========================================================
+        float3 Ld = SafeNormalize(-gDirectionalLight.direction); // pixel -> light
+        float3 dirLightColor = gDirectionalLight.color.rgb * gDirectionalLight.intensity;
 
-        float3 diffuse =
+        // Diffuse (Half-Lambert)
+        float NdotLd = saturate(dot(N, Ld));
+        float halfLambertD = pow(NdotLd * 0.5f + 0.5f, 2.0f);
+
+        float3 diffuseD =
             baseRgb *
-            gDirectionalLight.color.rgb *
-            halfLambert *
-            gDirectionalLight.intensity;
+            dirLightColor *
+            halfLambertD;
 
         // Specular
-        float specPow = 0.0f;
-
+        float specPowD = 0.0f;
 #if USE_BLINN_PHONG
-        // Blinn-Phong: HalfVector
-        float3 H = SafeNormalize(L + V); // fixes NaN streaks
-        float NdotH = saturate(dot(N, H));
-        specPow = pow(NdotH, gMaterial.shininess);
+        float3 Hd = SafeNormalize(Ld + V);
+        float NdotHd = saturate(dot(N, Hd));
+        specPowD = pow(NdotHd, gMaterial.shininess);
 #else
-        // Phong: Reflection vector
-        float3 R = reflect(-L, N);
-        specPow = pow(saturate(dot(R, V)), gMaterial.shininess);
+        float3 Rd = reflect(-Ld, N);
+        specPowD = pow(saturate(dot(Rd, V)), gMaterial.shininess);
 #endif
 
-        // Specular color (white like the slide)
-        float3 specular =
-            gDirectionalLight.color.rgb *
-            gDirectionalLight.intensity *
-            specPow;
+        float3 specularD =
+            dirLightColor *
+            specPowD;
 
-        outRgb = diffuse + specular;
+       //========================================================
+// 2) PointLight 分 ★距離減衰あり（逆二乗）
+//========================================================
+        float3 toPL = gPointLight.position - input.worldPosition;
+
+        float dist = length(toPL);
+
+// 半径が0だと割れちゃうので保険
+        float r = max(gPointLight.radius, 0.001f);
+
+// 資料の形：pow(saturate(-dist/r + 1), decay) = pow(saturate(1 - dist/r), decay)
+        float factor = pow(saturate(1.0f - dist / r), gPointLight.decay);
+
+
+// Lp = pixel -> pointLight（入射光方向）
+        float3 Lp = SafeNormalize(toPL);
+
+// 色 = pointLight の色 * intensity * 減衰
+        float3 pointLightColor = gPointLight.color.rgb * gPointLight.intensity * factor;
+
+
+// Diffuse (Half-Lambert)
+        float NdotLp = saturate(dot(N, Lp));
+        float halfLambertP = pow(NdotLp * 0.5f + 0.5f, 2.0f);
+
+        float3 diffuseP =
+    baseRgb *
+    pointLightColor *
+    halfLambertP;
+
+// Specular
+        float specPowP = 0.0f;
+
+#if USE_BLINN_PHONG
+        float3 Hp = SafeNormalize(Lp + V);
+        float NdotHp = saturate(dot(N, Hp));
+        specPowP = pow(NdotHp, max(gMaterial.shininess, 1.0f));
+#else
+float3 Rp = reflect(-Lp, N);
+specPowP = pow(saturate(dot(Rp, V)), max(gMaterial.shininess, 1.0f));
+#endif
+
+        float3 specularP =
+    pointLightColor *
+    specPowP;
+
+       //========================================================
+// 2.5) SpotLight 分（距離減衰 + Falloff）※向き整理版
+//========================================================
+        float3 toSurface = input.worldPosition - gSpotLight.position; // light -> pixel
+        float distS = length(toSurface);
+
+// light->pixel（フォールオフ用）
+        float3 Ls_out = SafeNormalize(toSurface);
+
+// pixel->light（拡散・鏡面用）
+        float3 Ls = -Ls_out;
+
+// 距離減衰：0で最大、distanceで0
+        float maxDist = max(gSpotLight.distance, 0.001f);
+        float atten = pow(saturate(1.0f - distS / maxDist), gSpotLight.decay);
+
+// Falloff（角度減衰）
+// direction は「スポットが向く方向」（lightから照らす向き）とする
+        float3 Sd = SafeNormalize(gSpotLight.direction);
+        float cosA = dot(Ls_out, Sd); // 中心軸だと1
+
+// cosAngleが1に近いと分母が0になるので保険
+        float denom = max(1.0f - gSpotLight.cosAngle, 1e-4f);
+        float falloff = saturate((cosA - gSpotLight.cosAngle) / denom);
+
+// ライト色（距離減衰＋角度減衰込み）
+        float3 spotColor = gSpotLight.color.rgb * gSpotLight.intensity * atten * falloff;
+
+// Diffuse（Half-Lambert）
+        float NdotLs = saturate(dot(N, Ls));
+        float halfLambertS = pow(NdotLs * 0.5f + 0.5f, 2.0f);
+        float3 diffuseS = baseRgb * spotColor * halfLambertS;
+
+// Specular（Blinn）
+        float3 Hs = SafeNormalize(Ls + V);
+        float specPowS = pow(saturate(dot(N, Hs)), max(gMaterial.shininess, 1.0f));
+        float3 specularS = spotColor * specPowS;
+
+
+
+        //========================================================
+        // 3) 最終合成：全部足す（資料どおり）
+        //========================================================
+        outRgb = (diffuseD + specularD) + (diffuseP + specularP) + (diffuseS + specularS);
+
+
     }
-
-    // Optional: blend motion mask as red highlight
-    // float3 highlight = float3(1.0f, 0.0f, 0.0f);
-    // outRgb = lerp(outRgb, highlight, maskColor.r);
 
     output.color = float4(outRgb, baseA);
     return output;

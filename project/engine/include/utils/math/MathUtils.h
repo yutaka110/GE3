@@ -53,6 +53,30 @@ struct DirectionalLight
     float   intensity;  ///< 輝度（明るさ）
 };
 
+struct PointLight {
+    Vector4 color;
+    Vector3 position;
+    float intensity;
+    float radius;      // 4
+    float decay;       // 4
+    float padding[2];  // 8 -> 合計48（16の倍数）
+};
+
+struct SpotLight
+{
+    Vector4 color;
+    Vector3 position;
+    float intensity;
+
+    Vector3 direction;
+    float distance;
+
+    float decay;
+    float cosAngle;
+    float padding[2]; // 16byte alignment
+};
+
+
 //================================
 // 関数プロトタイプ
 //================================

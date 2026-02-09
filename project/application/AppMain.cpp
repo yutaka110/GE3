@@ -823,6 +823,7 @@ IDxcBlob* CompileShader(
 		entryPoint,
 		profile
 	);
+	OutputDebugStringW((L"[ShaderCompileFailed] " + filePath + L"\n").c_str());
 
 	if (!blob) {
 		// Compile 失敗。ログは ShaderCompiler 側が出してくれている。
@@ -1398,7 +1399,7 @@ int AppMain::Run() {
 
 	// RootParameter作成。接続数をできるので配列。
 	// b2(Camera) を追加するため 6 -> 7 に拡張
-	D3D12_ROOT_PARAMETER rootParameters[7] = {};
+	D3D12_ROOT_PARAMETER rootParameters[9] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
 	rootParameters[0].ShaderVisibility =
 		D3D12_SHADER_VISIBILITY_PIXEL;               // PixelShaderで使う
@@ -1442,6 +1443,16 @@ int AppMain::Run() {
 	rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[6].Descriptor.ShaderRegister = 2; // register(b2)
+
+	// PointLight: PS 用 CBV b3
+	rootParameters[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[7].Descriptor.ShaderRegister = 3; // register(b3)
+
+	// SpotLight: PS 用 CBV b4  ★追加
+	rootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[8].Descriptor.ShaderRegister = 4;
 
 	// ルートパラメータ配列へのポインタ
 	descriptionRootSignature.pParameters = rootParameters;
@@ -2145,7 +2156,7 @@ int AppMain::Run() {
 	directionalLightData.color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白色光
 
 		// 完成例の見た目（球の右上にハイライトが出る）に近い向き
-		Vector3 dir = { 0.21f, -0.978f, 0.0f };
+		Vector3 dir = { 0.068f, -0.057f, -0.996f };
 
 	// 方向を正規化する
 	float length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
@@ -2161,6 +2172,40 @@ int AppMain::Run() {
 	DirectionalLight* mappedLight = nullptr;
 	directionalLightResource->Map(0, nullptr,
 		reinterpret_cast<void**>(&mappedLight));
+
+	//================================
+    // ポイントライト
+    //================================
+	PointLight pointLightData{};
+	pointLightData.color = { 1,1,1,1 };
+	pointLightData.position = { 0.0f, 2.0f, 0.0f };
+	pointLightData.intensity = 1.0f;
+	pointLightData.radius = 10.0f;   // 影響範囲
+	pointLightData.decay = 2.0f;    // 2〜4が使いやすい
+
+	ComPtr<ID3D12Resource> pointLightResource =
+		CreateBufferResource(device, sizeof(PointLight));
+
+	PointLight* mappedPointLight = nullptr;
+	pointLightResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedPointLight));
+	*mappedPointLight = pointLightData;
+
+	//================================
+	// スポットライト
+	//================================
+	SpotLight spotLight{};
+	spotLight.color = { 1,1,1,1 };
+	spotLight.position = { 2.0f, 1.25f, 0.0f };
+	spotLight.direction = Normalize(Vector3{ -1.0f, -1.0f, 0.0f });
+	spotLight.distance = 7.0f;
+	spotLight.intensity = 5.0f;
+	spotLight.decay = 2.0f;
+	spotLight.cosAngle = std::cos(std::numbers::pi_v<float> / 3.0f);
+
+	ComPtr<ID3D12Resource> spotLightResource = CreateBufferResource(device, sizeof(SpotLight));
+	SpotLight* mappedSpotLight = nullptr;
+	spotLightResource->Map(0, nullptr, reinterpret_cast<void**>(&mappedSpotLight));
+	*mappedSpotLight = spotLight;
 
 	// -----------------------------
 	// Camera 定数バッファ（PS: b2）
@@ -2293,7 +2338,7 @@ int AppMain::Run() {
 	materialData->enableLighting = true;
 	// Phong の光沢度（大きいほどハイライトが鋭い）
 	// 課題の完成例に近いツヤ感にする（値が大きいほどハイライトが小さく鋭くなる）
-	materialData->shininess = 32.0f;
+	materialData->shininess = 3.0f;
 
 	// UVTransform行列を単位行列で初期化
 	materialData->uvTransform = MakeIdentity4x4();
@@ -2342,7 +2387,7 @@ int AppMain::Run() {
 	// Transform変数を作る
 	Transform transform{
 		{3.0f, 3.0f, 3.0f}, // scale（等倍）
-		{0.0f, 0.0f, 0.0f}, // rotate（回転なし）
+		{0.0f, 1.0f, 0.0f}, // rotate（回転なし）
 		{0.0f, 0.0f, 0.0f}  // translate（原点）
 	};
 
@@ -2709,8 +2754,8 @@ int AppMain::Run() {
 
 	auto UpdateFrame = [&]() {
 		//**************************
-					// ゲームの処理
-					//**************************
+		// ゲームの処理
+		//**************************
 		debugCamera.Update();
 			// PS(b2) にカメラのワールド座標を反映（Specular 用）
 			mappedCamera->worldPosition = debugCamera.translation_;
@@ -2736,7 +2781,7 @@ int AppMain::Run() {
 		//keyboard->GetDeviceState(sizeof(key), key);
 
 		viewProjectionMatrix = Multiply(viewMatrix, projMatrix);
-		deltaTime = 0.016f/* 前フレームとの差分時間 */;
+		deltaTime += 0.016f/* 前フレームとの差分時間 */;
 
 		// ★ここで毎フレームインスタンス行列を更新
 		//UpdateInstanceMatrices(viewProjectionMatrix, deltaTime);
@@ -2903,6 +2948,15 @@ int AppMain::Run() {
 		ImGui::Begin("Material Settings");
 		ImGui::ColorEdit4("Material Color",
 			reinterpret_cast<float*>(materialData));
+		// Lighting ON/OFF
+		ImGui::Checkbox("Enable Lighting", (bool*)&materialData->enableLighting);
+
+		// Blinn-Phongの見た目調整の本命：shininess
+		ImGui::SliderFloat("Shininess", &materialData->shininess, 1.0f, 64.0f);
+
+		// まず資料に寄せるなら 8〜16 くらいが気持ちいい
+		ImGui::Text("Recommended: shininess 8-16");
+
 		ImGui::Text("Scale");
 		ImGui::DragFloat3("Scale", reinterpret_cast<float*>(&transform.scale),
 			0.01f, 0.01f, 10.0f);
@@ -2939,6 +2993,12 @@ int AppMain::Run() {
 			particles.splice(particles.end(), Emit(emitter, randomEngine));
 		}
 
+		ImGui::DragFloat3("Point Pos", &pointLightData.position.x, 0.05f);
+		ImGui::DragFloat("Point Intensity", &pointLightData.intensity, 0.05f, 0.0f, 50.0f);
+		ImGui::DragFloat("Point Radius", &pointLightData.radius, 0.1f, 0.1f, 100.0f);
+		ImGui::DragFloat("Point Decay", &pointLightData.decay, 0.05f, 0.1f, 8.0f);
+
+
 		ImGui::End();
 
 		// --- ImGui描画準備 ---
@@ -2948,6 +3008,16 @@ int AppMain::Run() {
 		directionalLightData.direction =
 			Normalize(directionalLightData.direction);
 		*mappedLight = directionalLightData;
+
+		// 課題確認用：まず Directional を切る
+		//directionalLightData.intensity = 0.0f;
+
+		// PointLight を左右に動かす例
+		pointLightData.position.x = sinf(deltaTime) * 2.0f;
+		*mappedPointLight = pointLightData;
+
+		spotLight.direction = Normalize(spotLight.direction);
+		*mappedSpotLight = spotLight;
 
 		//**************************
 		// 描画に必要なステート設定
@@ -2997,6 +3067,13 @@ int AppMain::Run() {
 		// camera用のCBufferの場所を設定（Specular 用）
 		commandList->SetGraphicsRootConstantBufferView(
 			6, cameraResource->GetGPUVirtualAddress());
+
+		// pointLight用のCBufferの場所を設定（Point Light 用）
+		commandList->SetGraphicsRootConstantBufferView(
+			7, pointLightResource->GetGPUVirtualAddress());
+
+		commandList->SetGraphicsRootConstantBufferView(8, spotLightResource->GetGPUVirtualAddress());
+
 
 		ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 		commandList->SetDescriptorHeaps(1, descriptorHeaps);
@@ -3104,7 +3181,7 @@ int AppMain::Run() {
 			XMFLOAT4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 			float intensity = 1.0f;
 
-			g_beam.DrawTest(commandList.Get(), wvp, color, intensity);
+			//g_beam.DrawTest(commandList.Get(), wvp, color, intensity);
 		}
 
 
