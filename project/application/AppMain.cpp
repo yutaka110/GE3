@@ -60,6 +60,7 @@ using ge3::core::ShaderCompiler;
 #include <DirectXMath.h>
 #include"utils/dx12/BufferHelper.h"
 #include <random>
+#include "ModelLoaderAssimp.h"
 using namespace DirectX;
 // …WSAStartup はどこかの初期化で一度だけ呼んでおいてね…
 /*
@@ -132,16 +133,7 @@ struct SphereMeshData {
 	UINT vertexCount;
 };
 
-// MaterialData構造体
-struct MaterialData {
-	std::string textureFilePath;
-};
 
-// ModelData構造体
-struct ModelData {
-	std::vector<VertexData> vertices;
-	MaterialData material;
-};
 
 // チャンクヘッダ
 struct ChunkHeader {
@@ -2578,6 +2570,39 @@ int AppMain::Run() {
 	sphere.mappedCBV->World = MakeIdentity4x4();
 	sphere.mappedCBV->WorldInverseTranspose = MakeIdentity4x4();
 
+	// -------------------------
+// ★ assimpでモデル読み込み（初期化時に1回）
+// -------------------------
+	ModelData modelData = LoadObjFile_Assimp("Resources/ball", "ball.obj");
+	assert(!modelData.vertices.empty());
+
+	// -------------------------
+	// ★ GPU頂点バッファ作成
+	// CreateBufferResource はあなたの既存関数を使う想定
+	// -------------------------
+	ComPtr<ID3D12Resource> modelVertexResource =
+		CreateBufferResource(device.Get(), sizeof(VertexData) * modelData.vertices.size());
+
+	VertexData* mapped = nullptr;
+	modelVertexResource->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	memcpy(mapped, modelData.vertices.data(), sizeof(VertexData)* modelData.vertices.size());
+	modelVertexResource->Unmap(0, nullptr);
+
+	// -------------------------
+	// ★ VBV 作成
+	// -------------------------
+	D3D12_VERTEX_BUFFER_VIEW modelVBV{};
+	modelVBV.BufferLocation = modelVertexResource->GetGPUVirtualAddress();
+	modelVBV.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+	modelVBV.StrideInBytes = sizeof(VertexData);
+
+	// 頂点数も保持
+	UINT modelVertexCount = UINT(modelData.vertices.size());
+
+
+	//-------------------ここまで追加してます-----------------------
+
+
 	//// コマンドアロケータとコマンドリストをReset
 	//commandAllocator->Reset();
 	//commandList->Reset(commandAllocator.Get(), graphicsPipelineState.Get());
@@ -2913,6 +2938,17 @@ int AppMain::Run() {
 			Matrix4x4 wvpSphere = Multiply(
 				worldMatrixSphere, Multiply(viewMatrixSphere, projectionMatrixSphere));
 
+			const Matrix4x4& rootLocal = modelData.rootNode.localMatrix;
+			Matrix4x4 worldWithNode = Multiply(rootLocal, worldMatrixSphere);
+			Matrix4x4 wvpWithNode = Multiply(worldWithNode, Multiply(viewMatrixSphere, projectionMatrixSphere));
+
+			if (sphere.mappedCBV) {
+				sphere.mappedCBV->World = worldWithNode;
+				sphere.mappedCBV->WVP = wvpWithNode;
+				sphere.mappedCBV->WorldInverseTranspose = Transpose(Inverse(worldWithNode));
+			}
+
+
 			if (sphere.mappedCBV) {
 				sphere.mappedCBV->WVP = wvpSphere;
 				// World はそのまま渡す（PS側で必要に応じて使う）
@@ -3092,7 +3128,7 @@ int AppMain::Run() {
 			commandList->SetPipelineState(graphicsPipelineState.Get());
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->IASetVertexBuffers(0, 1, &sphere.vbv);
+			commandList->IASetVertexBuffers(0, 1, &modelVBV);
 
 			// Material / WVP / Texture / Light / Camera
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
@@ -3101,7 +3137,7 @@ int AppMain::Run() {
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(6, cameraResource->GetGPUVirtualAddress());
 
-			commandList->DrawInstanced(sphere.vertexCount, 1, 0, 0);
+			commandList->DrawInstanced(modelVertexCount, 1, 0, 0);
 			// ---- ここまで: 球体描画 ----
 
 		//// 描画！（DrawCall／ドローコール）6個のインデックスを使用し1つのインスタンスを描画。その他は当面0で良い

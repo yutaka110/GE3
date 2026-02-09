@@ -1,6 +1,7 @@
 #pragma once
 #include "utils/math/Vector.h"
-
+#include <vector>
+#include <string>
 //================================
 // 行列・変換系の構造体
 //================================
@@ -75,6 +76,26 @@ struct SpotLight
     float cosAngle;
     float padding[2]; // 16byte alignment
 };
+
+// MaterialData構造体
+struct MaterialData {
+    std::string textureFilePath;
+};
+
+struct Node {
+    Matrix4x4 localMatrix;        // Nodeのローカル変換
+    std::string name;             // Node名
+    std::vector<Node> children;   // 子
+};
+
+// ModelData構造体
+struct ModelData {
+    std::vector<VertexData> vertices;
+    MaterialData material;
+    Node rootNode;
+};
+
+
 
 
 //================================
