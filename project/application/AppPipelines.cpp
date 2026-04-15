@@ -61,7 +61,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     motionMaskRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     motionMaskRange.OffsetInDescriptorsFromTableStart = 0;
 
-    D3D12_ROOT_PARAMETER rootParameters[6] = {};
+    D3D12_ROOT_PARAMETER rootParameters[9] = {};
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -88,6 +88,18 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
     rootParameters[5].DescriptorTable.pDescriptorRanges = &motionMaskRange;
+
+    rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[6].Descriptor.ShaderRegister = 2;
+
+    rootParameters[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[7].Descriptor.ShaderRegister = 3;
+
+    rootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[8].Descriptor.ShaderRegister = 4;
 
     descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
@@ -225,7 +237,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
     inputElementDescs[0].SemanticName = "POSITION";
     inputElementDescs[0].SemanticIndex = 0;
-    inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
     inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     inputElementDescs[1].SemanticName = "TEXCOORD";
@@ -406,6 +418,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
         bd.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         bd.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
         d.BlendState = bd;
+        d.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
         hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&mainAlphaPso_));
         if (FAILED(hr)) return false;
     }

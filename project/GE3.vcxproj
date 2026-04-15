@@ -157,8 +157,17 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="application\AppAudio.cpp" />
+    <ClCompile Include="application\AppBootstrap.cpp" />
+    <ClCompile Include="application\AppFrameRenderer.cpp" />
+    <ClCompile Include="application\AppRenderResources.cpp" />
+    <ClCompile Include="application\AppRunLoop.cpp" />
+    <ClCompile Include="application\AppImGuiLayer.cpp" />
     <ClCompile Include="application\AppMain.cpp" />
+    <ClCompile Include="application\AppParticleSystem.cpp" />
     <ClCompile Include="application\AppPipelines.cpp" />
+    <ClCompile Include="application\AppRuntimeUtils.cpp" />
+    <ClCompile Include="application\AppSceneResources.cpp" />
     <ClCompile Include="application\EngineContext.cpp" />
     <ClCompile Include="application\ModelLoaderAssimp.cpp" />
     <ClCompile Include="application\src\particle\BeamRenderer.cpp" />
@@ -167,6 +176,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ColorConverter.cpp" />
     <ClCompile Include="CustomByteStream.cpp" />
     <ClCompile Include="engine\src\assets\ObjLoader.cpp" />
+    <ClCompile Include="engine\src\audio\WaveAudio.cpp" />
     <ClCompile Include="engine\src\camera\debugCamera.cpp" />
     <ClCompile Include="engine\src\core\CommandListPool.cpp" />
     <ClCompile Include="engine\src\core\DescriptorHeap.cpp" />
@@ -261,8 +271,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="application\AppRunLoop.h" />
+    <ClInclude Include="application\AppAudio.h" />
+    <ClInclude Include="application\AppBootstrap.h" />
+    <ClInclude Include="application\AppFrameRenderer.h" />
+    <ClInclude Include="application\AppRenderResources.h" />
+    <ClInclude Include="application\AppImGuiLayer.h" />
     <ClInclude Include="application\AppMain.h" />
+    <ClInclude Include="application\AppParticleSystem.h" />
     <ClInclude Include="application\AppPipelines.h" />
+    <ClInclude Include="application\AppRuntimeState.h" />
+    <ClInclude Include="application\AppRuntimeUtils.h" />
+    <ClInclude Include="application\AppSceneResources.h" />
     <ClInclude Include="application\EngineContext.h" />
     <ClInclude Include="application\include\particle\BeamRenderer.h" />
     <ClInclude Include="application\include\renderer\DebugSceneRenderer.h" />
@@ -273,6 +293,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="CustomByteStream.h" />
     <ClInclude Include="engine\include\assets\ObjLoader.h" />
     <ClInclude Include="engine\include\audio\AudioWave.h" />
+    <ClInclude Include="engine\include\audio\WaveAudio.h" />
     <ClInclude Include="engine\include\camera\debugCamera.h" />
     <ClInclude Include="engine\include\core\CommandListPool.h" />
     <ClInclude Include="engine\include\core\DescriptorHeap.h" />
