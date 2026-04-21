@@ -12,7 +12,7 @@ public:
         D3D12_CPU_DESCRIPTOR_HANDLE dsv,
         const float clearColor[4]) const;
 
-    void PrepareMainPass(
+    bool PrepareMainPass(
         ID3D12GraphicsCommandList* commandList,
         const D3D12_VIEWPORT& viewport,
         const D3D12_RECT& scissorRect,
@@ -25,8 +25,12 @@ public:
         D3D12_GPU_VIRTUAL_ADDRESS materialBufferAddress,
         D3D12_GPU_VIRTUAL_ADDRESS transformBufferAddress,
         D3D12_GPU_DESCRIPTOR_HANDLE textureHandle,
+        D3D12_GPU_DESCRIPTOR_HANDLE receivedTextureHandle,
+        D3D12_GPU_DESCRIPTOR_HANDLE motionMaskTextureHandle,
         D3D12_GPU_VIRTUAL_ADDRESS directionalLightBufferAddress,
         D3D12_GPU_VIRTUAL_ADDRESS cameraBufferAddress,
+        D3D12_GPU_VIRTUAL_ADDRESS pointLightBufferAddress,
+        D3D12_GPU_VIRTUAL_ADDRESS spotLightBufferAddress,
         uint32_t vertexCount) const;
 
     void DrawSprite(
@@ -36,10 +40,7 @@ public:
         const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
         D3D12_GPU_VIRTUAL_ADDRESS materialBufferAddress,
         D3D12_GPU_VIRTUAL_ADDRESS transformBufferAddress,
-        D3D12_GPU_VIRTUAL_ADDRESS directionalLightBufferAddress,
-        D3D12_GPU_VIRTUAL_ADDRESS cameraBufferAddress,
-        D3D12_GPU_VIRTUAL_ADDRESS pointLightBufferAddress,
-        D3D12_GPU_VIRTUAL_ADDRESS spotLightBufferAddress) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) const;
 
     void PrepareSphere(
         ID3D12GraphicsCommandList* commandList,

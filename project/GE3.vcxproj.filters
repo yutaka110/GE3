@@ -213,7 +213,7 @@
     <ClCompile Include="application\ModelLoaderAssimp.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="engine\src\audio\WaveAudio.cpp">
+    <ClCompile Include="engine\src\audio\AudioWave.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="application\AppAudio.cpp">
@@ -249,6 +249,8 @@
     <FxCompile Include="Object3D.PS.hlsl" />
     <FxCompile Include="Resources\Particle.PS.hlsl" />
     <FxCompile Include="Resources\Particle.VS.hlsl" />
+    <FxCompile Include="Resources\Sprite.PS.hlsl" />
+    <FxCompile Include="Resources\Sprite.VS.hlsl" />
     <FxCompile Include="Resources\Beam3D.VS.hlsl" />
     <FxCompile Include="Resources\Beam3D.PS.hlsl" />
   </ItemGroup>

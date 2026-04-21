@@ -47,7 +47,7 @@ public:
     D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
     D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite;
-    Matrix4x4* transformationMatrixDataSprite = nullptr;
+    TransformationMatrix* transformationMatrixDataSprite = nullptr;
 
     // Material
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource;

@@ -1,5 +1,7 @@
 #include "AppParticleSystem.h"
 
+#include <cassert>
+
 #include "utils/dx12/BufferHelper.h"
 
 AppParticleSystem::AppParticleSystem()

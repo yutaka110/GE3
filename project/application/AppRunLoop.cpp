@@ -32,11 +32,11 @@ AppRunLoop::AppRunLoop(
     AppFrameRenderer& frameRenderer,
     AppPipelines& appPipelines,
     AppRenderResources& renderResources,
-    ge3::graphics::SwapChain& swapChain,
-    ge3::core::CommandListPool& clPool,
+    graphics::SwapChain& swapChain,
+    core::CommandListPool& clPool,
     EngineContext& engineContext,
     ge3::core::DescriptorHeapSet& heaps,
-    ge3::core::Device& dev,
+    core::Device& dev,
     ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap,
     Matrix4x4* wvpData,
     uint32_t windowWidth,
@@ -145,6 +145,31 @@ void AppRunLoop::RenderFrame() {
         {runtimeState_.accelerationField.area.min, runtimeState_.accelerationField.area.max}
     });
 
+    const D3D12_GPU_DESCRIPTOR_HANDLE spriteTextureHandle =
+        runtimeState_.useMonsterBall ? scene_.textureSrvHandleGPU2 : scene_.textureSrvHandleGPU;
+
+    const bool spritePassReady = frameRenderer_.PrepareMainPass(
+        commandList.Get(),
+        runtimeState_.viewport,
+        runtimeState_.scissorRect,
+        appPipelines_.GetSpriteRootSignature(),
+        appPipelines_.GetSpritePSO());
+
+    if (spritePassReady &&
+        scene_.materialResourceSprite &&
+        scene_.transformationMatrixResourceSprite) {
+        frameRenderer_.DrawSprite(
+            commandList.Get(),
+            srvDescriptorHeap_.Get(),
+            scene_.indexBufferViewSprite,
+            scene_.vertexBufferViewSprite,
+            scene_.materialResourceSprite->GetGPUVirtualAddress(),
+            scene_.transformationMatrixResourceSprite->GetGPUVirtualAddress(),
+            spriteTextureHandle);
+    } else {
+        OutputDebugStringA("[AppRunLoop] Sprite pass skipped because pipeline or resources are not ready.\n");
+    }
+
     frameRenderer_.PrepareMainPass(
         commandList.Get(),
         runtimeState_.viewport,
@@ -152,26 +177,18 @@ void AppRunLoop::RenderFrame() {
         appPipelines_.GetMainRootSignature(),
         appPipelines_.GetMainPSO());
 
-    frameRenderer_.DrawSprite(
-        commandList.Get(),
-        srvDescriptorHeap_.Get(),
-        scene_.indexBufferViewSprite,
-        scene_.vertexBufferViewSprite,
-        scene_.materialResourceSprite->GetGPUVirtualAddress(),
-        scene_.transformationMatrixResourceSprite->GetGPUVirtualAddress(),
-        scene_.directionalLightResource->GetGPUVirtualAddress(),
-        scene_.cameraResource->GetGPUVirtualAddress(),
-        scene_.pointLightResource->GetGPUVirtualAddress(),
-        scene_.spotLightResource->GetGPUVirtualAddress());
-
     frameRenderer_.DrawMainModel(
         commandList.Get(),
         scene_.modelVBV,
         scene_.materialResource->GetGPUVirtualAddress(),
         scene_.sphere.cbvResource->GetGPUVirtualAddress(),
         scene_.textureSrvHandleGPU2,
+        scene_.textureSrvHandleGPU2,
+        scene_.textureSrvHandleGPU2,
         scene_.directionalLightResource->GetGPUVirtualAddress(),
         scene_.cameraResource->GetGPUVirtualAddress(),
+        scene_.pointLightResource->GetGPUVirtualAddress(),
+        scene_.spotLightResource->GetGPUVirtualAddress(),
         scene_.modelVertexCount);
 
     if (runtimeState_.enableParticles) {

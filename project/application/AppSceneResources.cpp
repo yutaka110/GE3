@@ -86,12 +86,14 @@ bool AppSceneResources::Initialize(
     vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
 
     transformationMatrixResourceSprite =
-        CreateBufferResource(device, sizeof(Matrix4x4));
+        CreateBufferResource(device, sizeof(TransformationMatrix));
     transformationMatrixResourceSprite->Map(
         0,
         nullptr,
         reinterpret_cast<void**>(&transformationMatrixDataSprite));
-    *transformationMatrixDataSprite = MakeIdentity4x4();
+    transformationMatrixDataSprite->WVP = MakeIdentity4x4();
+    transformationMatrixDataSprite->World = MakeIdentity4x4();
+    transformationMatrixDataSprite->WorldInverseTranspose = MakeIdentity4x4();
 
     indexBufferViewSprite.BufferLocation =
         indexResourceSprite->GetGPUVirtualAddress();
@@ -336,9 +338,12 @@ void AppSceneResources::UpdateTransforms(
             float(windowHeight),
             0.0f,
             100.0f);
-        *transformationMatrixDataSprite = Multiply(
+        transformationMatrixDataSprite->World = worldMatrixSprite;
+        transformationMatrixDataSprite->WVP = Multiply(
             worldMatrixSprite,
             Multiply(MakeIdentity4x4(), projectionMatrixSprite));
+        transformationMatrixDataSprite->WorldInverseTranspose =
+            Transpose(Inverse(worldMatrixSprite));
     }
 
     if (materialDataSprite != nullptr) {

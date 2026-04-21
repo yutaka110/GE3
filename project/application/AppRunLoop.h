@@ -17,7 +17,7 @@ class AppImGuiLayer;
 class AppPipelines;
 class AppParticleSystem;
 class AppRenderResources;
-class AppRuntimeState;
+struct AppRuntimeState;
 class AppSceneResources;
 class EngineContext;
 
@@ -40,11 +40,11 @@ public:
         AppFrameRenderer& frameRenderer,
         AppPipelines& appPipelines,
         AppRenderResources& renderResources,
-        ge3::graphics::SwapChain& swapChain,
-        ge3::core::CommandListPool& clPool,
+        graphics::SwapChain& swapChain,
+        core::CommandListPool& clPool,
         EngineContext& engineContext,
         ge3::core::DescriptorHeapSet& heaps,
-        ge3::core::Device& dev,
+        core::Device& dev,
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap,
         Matrix4x4* wvpData,
         uint32_t windowWidth,
@@ -72,11 +72,11 @@ private:
     AppFrameRenderer& frameRenderer_;
     AppPipelines& appPipelines_;
     AppRenderResources& renderResources_;
-    ge3::graphics::SwapChain& swapChain_;
-    ge3::core::CommandListPool& clPool_;
+    graphics::SwapChain& swapChain_;
+    core::CommandListPool& clPool_;
     EngineContext& engineContext_;
     ge3::core::DescriptorHeapSet& heaps_;
-    ge3::core::Device& dev_;
+    core::Device& dev_;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
     Matrix4x4* wvpData_;
     uint32_t windowWidth_;

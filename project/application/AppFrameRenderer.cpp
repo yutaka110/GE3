@@ -30,20 +30,21 @@ void AppFrameRenderer::BeginFrame(
         nullptr);
 }
 
-void AppFrameRenderer::PrepareMainPass(
+bool AppFrameRenderer::PrepareMainPass(
     ID3D12GraphicsCommandList* commandList,
     const D3D12_VIEWPORT& viewport,
     const D3D12_RECT& scissorRect,
     ID3D12RootSignature* rootSignature,
     ID3D12PipelineState* pipelineState) const {
     if (commandList == nullptr || rootSignature == nullptr || pipelineState == nullptr) {
-        return;
+        return false;
     }
 
     commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &scissorRect);
     commandList->SetGraphicsRootSignature(rootSignature);
     commandList->SetPipelineState(pipelineState);
+    return true;
 }
 
 void AppFrameRenderer::DrawMainModel(
@@ -52,10 +53,18 @@ void AppFrameRenderer::DrawMainModel(
     D3D12_GPU_VIRTUAL_ADDRESS materialBufferAddress,
     D3D12_GPU_VIRTUAL_ADDRESS transformBufferAddress,
     D3D12_GPU_DESCRIPTOR_HANDLE textureHandle,
+    D3D12_GPU_DESCRIPTOR_HANDLE receivedTextureHandle,
+    D3D12_GPU_DESCRIPTOR_HANDLE motionMaskTextureHandle,
     D3D12_GPU_VIRTUAL_ADDRESS directionalLightBufferAddress,
     D3D12_GPU_VIRTUAL_ADDRESS cameraBufferAddress,
+    D3D12_GPU_VIRTUAL_ADDRESS pointLightBufferAddress,
+    D3D12_GPU_VIRTUAL_ADDRESS spotLightBufferAddress,
     uint32_t vertexCount) const {
-    if (commandList == nullptr || vertexCount == 0) {
+    if (commandList == nullptr || vertexCount == 0 ||
+        materialBufferAddress == 0 || transformBufferAddress == 0 ||
+        textureHandle.ptr == 0 || directionalLightBufferAddress == 0 ||
+        cameraBufferAddress == 0 || pointLightBufferAddress == 0 ||
+        spotLightBufferAddress == 0) {
         return;
     }
 
@@ -65,7 +74,11 @@ void AppFrameRenderer::DrawMainModel(
     commandList->SetGraphicsRootConstantBufferView(1, transformBufferAddress);
     commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
     commandList->SetGraphicsRootConstantBufferView(3, directionalLightBufferAddress);
+    commandList->SetGraphicsRootDescriptorTable(4, receivedTextureHandle);
+    commandList->SetGraphicsRootDescriptorTable(5, motionMaskTextureHandle);
     commandList->SetGraphicsRootConstantBufferView(6, cameraBufferAddress);
+    commandList->SetGraphicsRootConstantBufferView(7, pointLightBufferAddress);
+    commandList->SetGraphicsRootConstantBufferView(8, spotLightBufferAddress);
     commandList->DrawInstanced(vertexCount, 1, 0, 0);
 }
 
@@ -76,25 +89,22 @@ void AppFrameRenderer::DrawSprite(
     const D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
     D3D12_GPU_VIRTUAL_ADDRESS materialBufferAddress,
     D3D12_GPU_VIRTUAL_ADDRESS transformBufferAddress,
-    D3D12_GPU_VIRTUAL_ADDRESS directionalLightBufferAddress,
-    D3D12_GPU_VIRTUAL_ADDRESS cameraBufferAddress,
-    D3D12_GPU_VIRTUAL_ADDRESS pointLightBufferAddress,
-    D3D12_GPU_VIRTUAL_ADDRESS spotLightBufferAddress) const {
-    if (commandList == nullptr || descriptorHeap == nullptr) {
+    D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) const {
+    if (commandList == nullptr || descriptorHeap == nullptr ||
+        materialBufferAddress == 0 || transformBufferAddress == 0 ||
+        textureHandle.ptr == 0) {
         return;
     }
 
-    commandList->IASetIndexBuffer(&indexBufferView);
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->SetGraphicsRootConstantBufferView(0, materialBufferAddress);
-    commandList->SetGraphicsRootConstantBufferView(1, transformBufferAddress);
-    commandList->SetGraphicsRootConstantBufferView(3, directionalLightBufferAddress);
-    commandList->SetGraphicsRootConstantBufferView(6, cameraBufferAddress);
-    commandList->SetGraphicsRootConstantBufferView(7, pointLightBufferAddress);
-    commandList->SetGraphicsRootConstantBufferView(8, spotLightBufferAddress);
     ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap };
     commandList->SetDescriptorHeaps(1, descriptorHeaps);
+    commandList->SetGraphicsRootConstantBufferView(0, materialBufferAddress);
+    commandList->SetGraphicsRootConstantBufferView(1, transformBufferAddress);
+    commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
+    commandList->IASetIndexBuffer(&indexBufferView);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
 
 void AppFrameRenderer::PrepareSphere(
