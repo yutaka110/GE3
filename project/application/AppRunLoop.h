@@ -10,6 +10,7 @@
 #include "core/DescriptorHeap.h"
 #include "core/Device.h"
 #include "graphics/SwapChain.h"
+#include "particle/BeamRenderer.h"
 #include "utils/math/MathUtils.h"
 
 class AppFrameRenderer;
@@ -62,6 +63,7 @@ public:
         DXGI_FORMAT dsvFormat);
     void UpdateFrame();
     void RenderFrame();
+    void Shutdown();
 
 private:
     DebugCamera& debugCamera_;
@@ -85,4 +87,6 @@ private:
     ID3D12CommandQueue* commandQueue_;
     ID3D12Fence* fence_;
     HANDLE fenceEvent_;
+    BeamRenderer beam_;
+    float beamTime_ = 0.0f;
 };

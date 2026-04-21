@@ -7,7 +7,7 @@ class BeamRenderer
 {
 public:
     BeamRenderer() = default;
-    ~BeamRenderer() = default;
+    ~BeamRenderer();
 
     // 初期化
     //  - device           : D3D12 デバイス
@@ -39,6 +39,7 @@ public:
     );
 
     void SetTime(float t);
+    void Shutdown();
 
 private:
 

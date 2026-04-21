@@ -11,17 +11,9 @@
 #include "AppRuntimeState.h"
 #include "AppSceneResources.h"
 #include "EngineContext.h"
-#include "particle/BeamRenderer.h"
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
-
-namespace {
-
-BeamRenderer g_beam;
-float g_beamTime = 0.0f;
-
-} // namespace
 
 AppRunLoop::AppRunLoop(
     DebugCamera& debugCamera,
@@ -73,7 +65,7 @@ void AppRunLoop::InitializeBeam(
     uint32_t descriptorSizeSRV,
     DXGI_FORMAT rtvFormat,
     DXGI_FORMAT dsvFormat) {
-    g_beam.Initialize(
+    beam_.Initialize(
         device,
         srvDescriptorHeap,
         descriptorSizeSRV,
@@ -83,6 +75,10 @@ void AppRunLoop::InitializeBeam(
         dsvFormat);
 }
 
+void AppRunLoop::Shutdown() {
+    beam_.Shutdown();
+}
+
 void AppRunLoop::UpdateFrame() {
     debugCamera_.Update();
     runtimeState_.cameraWorldPosition = debugCamera_.translation_;
@@ -90,8 +86,8 @@ void AppRunLoop::UpdateFrame() {
     frameState_.viewMatrix = debugCamera_.GetViewMatrix();
     frameState_.projMatrix = debugCamera_.GetProjectionMatrix();
 
-    g_beamTime += 0.016f;
-    g_beam.SetTime(g_beamTime);
+    beamTime_ += 0.016f;
+    beam_.SetTime(beamTime_);
 
     BYTE key[256] = {};
     (void)key;
