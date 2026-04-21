@@ -1,8 +1,65 @@
 #include "AppPipelines.h"
 
 #include <cassert>
+#include <cstdio>
+#include <filesystem>
 
 using Microsoft::WRL::ComPtr;
+
+namespace {
+
+std::filesystem::path GetModuleDirectory() {
+    wchar_t modulePath[MAX_PATH]{};
+    const DWORD length = GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
+    if (length == 0 || length == MAX_PATH) {
+        return std::filesystem::current_path();
+    }
+    return std::filesystem::path(modulePath).parent_path();
+}
+
+std::filesystem::path ResolveShaderPath(const std::wstring& filePath) {
+    const std::filesystem::path requested(filePath);
+    if (std::filesystem::exists(requested)) {
+        return requested;
+    }
+
+    const std::filesystem::path bases[] = {
+        std::filesystem::current_path(),
+        GetModuleDirectory(),
+    };
+
+    for (const auto& base : bases) {
+        std::filesystem::path probe = base;
+        for (int depth = 0; depth < 6; ++depth) {
+            const std::filesystem::path direct = probe / requested;
+            if (std::filesystem::exists(direct)) {
+                return direct;
+            }
+
+            const std::filesystem::path projectRelative = probe / L"project" / requested;
+            if (std::filesystem::exists(projectRelative)) {
+                return projectRelative;
+            }
+
+            if (!probe.has_parent_path()) {
+                break;
+            }
+            probe = probe.parent_path();
+        }
+    }
+
+    return requested;
+}
+
+bool FailHr(const char* stage, HRESULT hr) {
+    char message[256]{};
+    std::snprintf(message, sizeof(message), "[AppPipelines] %s failed. HRESULT=0x%08X\n",
+                  stage, static_cast<unsigned int>(hr));
+    OutputDebugStringA(message);
+    return false;
+}
+
+} // namespace
 
 ComPtr<IDxcBlob> AppPipelines::Compile_(const std::wstring& filePath, const wchar_t* profile) {
     if (!shaderCompiler_.Initialize()) {
@@ -11,8 +68,18 @@ ComPtr<IDxcBlob> AppPipelines::Compile_(const std::wstring& filePath, const wcha
     }
 
     const std::wstring entryPoint = L"main";
-    auto blob = shaderCompiler_.CompileFromFile(filePath, entryPoint, profile);
+    const std::filesystem::path resolvedPath = ResolveShaderPath(filePath);
+    if (!std::filesystem::exists(resolvedPath)) {
+        OutputDebugStringW(L"[AppPipelines] Shader file not found: ");
+        OutputDebugStringW(filePath.c_str());
+        OutputDebugStringW(L"\n");
+    }
+
+    auto blob = shaderCompiler_.CompileFromFile(resolvedPath.wstring(), entryPoint, profile);
     if (!blob) {
+        OutputDebugStringW(L"[AppPipelines] Shader compile failed: ");
+        OutputDebugStringW(resolvedPath.wstring().c_str());
+        OutputDebugStringW(L"\n");
         return nullptr;
     }
     return blob;
@@ -61,7 +128,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     motionMaskRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     motionMaskRange.OffsetInDescriptorsFromTableStart = 0;
 
-    D3D12_ROOT_PARAMETER rootParameters[6] = {};
+    D3D12_ROOT_PARAMETER rootParameters[9] = {};
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -89,6 +156,18 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
     rootParameters[5].DescriptorTable.pDescriptorRanges = &motionMaskRange;
 
+    rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[6].Descriptor.ShaderRegister = 2;
+
+    rootParameters[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[7].Descriptor.ShaderRegister = 3;
+
+    rootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[8].Descriptor.ShaderRegister = 4;
+
     descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -105,7 +184,52 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
 
     hr = device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
                                     IID_PPV_ARGS(&mainRootSignature_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) return FailHr("CreateRootSignature(Main)", hr);
+
+    // ------------------------------
+    // Sprite RootSignature
+    // ------------------------------
+    D3D12_DESCRIPTOR_RANGE spriteTextureRange{};
+    spriteTextureRange.BaseShaderRegister = 0;
+    spriteTextureRange.NumDescriptors = 1;
+    spriteTextureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    spriteTextureRange.OffsetInDescriptorsFromTableStart = 0;
+
+    D3D12_ROOT_PARAMETER spriteRootParams[3] = {};
+    spriteRootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    spriteRootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    spriteRootParams[0].Descriptor.ShaderRegister = 0;
+
+    spriteRootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    spriteRootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    spriteRootParams[1].Descriptor.ShaderRegister = 0;
+
+    spriteRootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    spriteRootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    spriteRootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+    spriteRootParams[2].DescriptorTable.pDescriptorRanges = &spriteTextureRange;
+
+    D3D12_ROOT_SIGNATURE_DESC spriteRsDesc{};
+    spriteRsDesc.NumParameters = _countof(spriteRootParams);
+    spriteRsDesc.pParameters = spriteRootParams;
+    spriteRsDesc.NumStaticSamplers = _countof(staticSamplers);
+    spriteRsDesc.pStaticSamplers = staticSamplers;
+    spriteRsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    ComPtr<ID3DBlob> spriteSigBlob;
+    ComPtr<ID3DBlob> spriteErrBlob;
+    hr = D3D12SerializeRootSignature(&spriteRsDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+                                    &spriteSigBlob, &spriteErrBlob);
+    if (FAILED(hr)) {
+        if (spriteErrBlob) {
+            OutputDebugStringA(reinterpret_cast<const char*>(spriteErrBlob->GetBufferPointer()));
+        }
+        return false;
+    }
+
+    hr = device->CreateRootSignature(0, spriteSigBlob->GetBufferPointer(), spriteSigBlob->GetBufferSize(),
+                                    IID_PPV_ARGS(&spriteRootSignature_));
+    if (FAILED(hr)) return FailHr("CreateRootSignature(Sprite)", hr);
 
     // ------------------------------
     // Particle RootSignature
@@ -157,16 +281,16 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
 
     hr = device->CreateRootSignature(0, particleSigBlob->GetBufferPointer(), particleSigBlob->GetBufferSize(),
                                     IID_PPV_ARGS(&particleRootSignature_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) return FailHr("CreateRootSignature(Particle)", hr);
 
     // ------------------------------
     // Compute RootSignature (MotionDetect)
     // ------------------------------
-    // t0: prev, t1: curr, u0: output
+    // t4: Y, t5: UV, u0: output
     D3D12_DESCRIPTOR_RANGE ranges[2] = {};
     ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     ranges[0].NumDescriptors = 2;
-    ranges[0].BaseShaderRegister = 0;
+    ranges[0].BaseShaderRegister = 4;
     ranges[0].OffsetInDescriptorsFromTableStart = 0;
 
     ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -204,18 +328,21 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
 
     hr = device->CreateRootSignature(0, csSigBlob->GetBufferPointer(), csSigBlob->GetBufferSize(),
                                     IID_PPV_ARGS(&computeRootSignature_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) return FailHr("CreateRootSignature(Compute)", hr);
 
     // ------------------------------
     // Compile shaders
     // ------------------------------
     vs_ = Compile_(L"resources/Object3D.VS.hlsl", L"vs_6_0");
     ps_ = Compile_(L"resources/Object3D.PS.hlsl", L"ps_6_0");
+    spriteVs_ = Compile_(L"resources/Sprite.VS.hlsl", L"vs_6_0");
+    spritePs_ = Compile_(L"resources/Sprite.PS.hlsl", L"ps_6_0");
     cs_ = Compile_(L"MotionDetect.CS.hlsl", L"cs_6_0");
     particleVs_ = Compile_(L"resources/Particle.VS.hlsl", L"vs_6_0");
     particlePs_ = Compile_(L"resources/Particle.PS.hlsl", L"ps_6_0");
 
-    if (!vs_ || !ps_ || !cs_ || !particleVs_ || !particlePs_) {
+    if (!vs_ || !ps_ || !spriteVs_ || !spritePs_ || !cs_ || !particleVs_ || !particlePs_) {
+        OutputDebugStringA("[AppPipelines] Shader compilation failed.\n");
         return false;
     }
 
@@ -225,7 +352,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
     inputElementDescs[0].SemanticName = "POSITION";
     inputElementDescs[0].SemanticIndex = 0;
-    inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
     inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     inputElementDescs[1].SemanticName = "TEXCOORD";
@@ -276,7 +403,58 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
     hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&mainPso_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(Main)", hr);
+
+    // ------------------------------
+    // Sprite PSO
+    // ------------------------------
+    D3D12_INPUT_ELEMENT_DESC spriteElements[2] = {};
+    spriteElements[0].SemanticName = "POSITION";
+    spriteElements[0].SemanticIndex = 0;
+    spriteElements[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    spriteElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    spriteElements[1].SemanticName = "TEXCOORD";
+    spriteElements[1].SemanticIndex = 0;
+    spriteElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+    spriteElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    D3D12_INPUT_LAYOUT_DESC spriteInputLayout{};
+    spriteInputLayout.pInputElementDescs = spriteElements;
+    spriteInputLayout.NumElements = _countof(spriteElements);
+
+    D3D12_BLEND_DESC spriteBlend{};
+    spriteBlend.RenderTarget[0].BlendEnable = TRUE;
+    spriteBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    spriteBlend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    spriteBlend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    spriteBlend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    spriteBlend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    spriteBlend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    spriteBlend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    D3D12_DEPTH_STENCIL_DESC spriteDepth{};
+    spriteDepth.DepthEnable = TRUE;
+    spriteDepth.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    spriteDepth.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC spriteDesc{};
+    spriteDesc.pRootSignature = spriteRootSignature_.Get();
+    spriteDesc.InputLayout = spriteInputLayout;
+    spriteDesc.VS = { spriteVs_->GetBufferPointer(), spriteVs_->GetBufferSize() };
+    spriteDesc.PS = { spritePs_->GetBufferPointer(), spritePs_->GetBufferSize() };
+    spriteDesc.BlendState = spriteBlend;
+    spriteDesc.RasterizerState = rasterizerDesc;
+    spriteDesc.DepthStencilState = spriteDepth;
+    spriteDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    spriteDesc.NumRenderTargets = 1;
+    spriteDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    spriteDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    spriteDesc.SampleDesc.Count = 1;
+    spriteDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+    hr = device->CreateGraphicsPipelineState(&spriteDesc, IID_PPV_ARGS(&spritePso_));
+    if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(Sprite)", hr);
 
     // ------------------------------
     // Compute PSO
@@ -285,7 +463,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     computePsoDesc.pRootSignature = computeRootSignature_.Get();
     computePsoDesc.CS = { cs_->GetBufferPointer(), cs_->GetBufferSize() };
     hr = device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&computePso_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) return FailHr("CreateComputePipelineState(MotionDetect)", hr);
 
     // ------------------------------
     // Particle PSOs
@@ -316,15 +494,22 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
         return d;
     };
 
-    // Particle input layout: POSITION(3), TEXCOORD(2) only
-    D3D12_INPUT_ELEMENT_DESC particleElements[2] = {};
+    // Particle quad uses VertexData: position(float4), texcoord(float2), normal(float3).
+    D3D12_INPUT_ELEMENT_DESC particleElements[3] = {};
     particleElements[0].SemanticName = "POSITION";
-    particleElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    particleElements[0].SemanticIndex = 0;
+    particleElements[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
     particleElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     particleElements[1].SemanticName = "TEXCOORD";
+    particleElements[1].SemanticIndex = 0;
     particleElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
     particleElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    particleElements[2].SemanticName = "NORMAL";
+    particleElements[2].SemanticIndex = 0;
+    particleElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    particleElements[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     D3D12_INPUT_LAYOUT_DESC particleInputLayout{};
     particleInputLayout.pInputElementDescs = particleElements;
@@ -359,14 +544,14 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
     // Legacy: particlePso_ (equivalent to particlePipelineState)
     particleDesc.BlendState = MakeParticleAlphaBlend();
     hr = device->CreateGraphicsPipelineState(&particleDesc, IID_PPV_ARGS(&particlePso_));
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(Particle)", hr);
 
     // Opaque
     {
         D3D12_GRAPHICS_PIPELINE_STATE_DESC d = particleDesc;
         d.BlendState = MakeParticleOpaqueBlend();
         hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&particleOpaquePso_));
-        if (FAILED(hr)) return false;
+        if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(ParticleOpaque)", hr);
     }
 
     // Alpha
@@ -374,7 +559,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
         D3D12_GRAPHICS_PIPELINE_STATE_DESC d = particleDesc;
         d.BlendState = MakeParticleAlphaBlend();
         hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&particleAlphaPso_));
-        if (FAILED(hr)) return false;
+        if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(ParticleAlpha)", hr);
     }
 
     // ------------------------------
@@ -391,7 +576,7 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
         };
         d.BlendState = MakeOpaqueBlend();
         hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&mainOpaquePso_));
-        if (FAILED(hr)) return false;
+        if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(MainOpaque)", hr);
     }
 
     {
@@ -406,8 +591,9 @@ bool AppPipelines::Initialize(ID3D12Device* device) {
         bd.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         bd.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
         d.BlendState = bd;
+        d.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
         hr = device->CreateGraphicsPipelineState(&d, IID_PPV_ARGS(&mainAlphaPso_));
-        if (FAILED(hr)) return false;
+        if (FAILED(hr)) return FailHr("CreateGraphicsPipelineState(MainAlpha)", hr);
     }
 
     return true;

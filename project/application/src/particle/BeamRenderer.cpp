@@ -20,6 +20,11 @@ struct BeamVertex
     XMFLOAT2 uv;
 };
 
+BeamRenderer::~BeamRenderer()
+{
+    Shutdown();
+}
+
 void BeamRenderer::Initialize(
     ID3D12Device* device,
     ID3D12DescriptorHeap* srvHeap,
@@ -402,6 +407,30 @@ void BeamRenderer::SetTime(float t)
     if (psCbMapped_) {
         psCbMapped_->time = t;
     }
+}
+
+void BeamRenderer::Shutdown()
+{
+    if (vsCb_ && vsCbMapped_) {
+        vsCb_->Unmap(0, nullptr);
+    }
+    if (psCb_ && psCbMapped_) {
+        psCb_->Unmap(0, nullptr);
+    }
+
+    vsCbMapped_ = nullptr;
+    psCbMapped_ = nullptr;
+    vsCb_.Reset();
+    psCb_.Reset();
+    vb_.Reset();
+    ib_.Reset();
+    pso_.Reset();
+    rootSig_.Reset();
+
+    vbView_ = {};
+    ibView_ = {};
+    indexCount_ = 0;
+    srvTableGpuStart_ = {};
 }
 
 //------------------------------------------------------

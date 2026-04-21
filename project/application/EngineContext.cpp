@@ -86,12 +86,18 @@ bool EngineContext::Initialize(HWND hwnd, UINT width, UINT height, bool enableDe
 }
 
 void EngineContext::Shutdown() {
+    mainCmdList_.Reset();
+    mainCmdAlloc_.Reset();
+    depthStencil_.Reset();
+    heaps_.Finalize();
+    swapChain_ = {};
+    clPool_ = {};
+    dev_.Shutdown();
+
     if (fenceEvent_) {
         CloseHandle(fenceEvent_);
         fenceEvent_ = nullptr;
     }
-
-    // 明示的に解放したい場合はここに追加
-    // heaps_.Finalize();
-    // dev_.Shutdown();
+    mainDsvIndex_ = UINT32_MAX;
+    fenceValue_ = 0;
 }

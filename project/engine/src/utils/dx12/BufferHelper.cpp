@@ -17,7 +17,7 @@ ComPtr<ID3D12Resource> CreateBufferResource(ComPtr<ID3D12Device> device, size_t 
     D3D12_RESOURCE_DESC resourceDesc{};
     resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     resourceDesc.Alignment = 0;
-    resourceDesc.Width = sizeInBytes;
+    resourceDesc.Width = (sizeInBytes + 0xFF) & ~static_cast<size_t>(0xFF);
     resourceDesc.Height = 1;
     resourceDesc.DepthOrArraySize = 1;
     resourceDesc.MipLevels = 1;
